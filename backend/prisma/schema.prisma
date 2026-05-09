@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Students Table
+model Student {
+  student_id    String       @id @default(uuid())
+  name          String
+  email         String       @unique
+  password      String
+  semester      Int
+  department_id String
+  department    Department   @relation(fields: [department_id], references: [department_id])
+  enrollments   Enrollment[]
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+}
+
+// 2. Admins Table
+model Admin {
+  admin_id   String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  password   String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+// 3. Departments Table
+model Department {
+  department_id   String    @id @default(uuid())
+  department_name String    @unique
+  students        Student[]
+  courses         Course[]
+}
+
+// 4. Faculty Table
+model Faculty {
+  faculty_id   String   @id @default(uuid())
+  faculty_name String
+  email        String   @unique
+  courses      Course[]
+}
+
+// 5. Courses Table
+model Course {
+  course_id       String         @id @default(uuid())
+  course_name     String
+  description     String         @db.Text
+  credits         Int
+  max_seats       Int
+  available_seats Int
+  faculty_id      String
+  faculty         Faculty        @relation(fields: [faculty_id], references: [faculty_id])
+  department_id   String
+  department      Department     @relation(fields: [department_id], references: [department_id])
+  enrollments     Enrollment[]
+  
+  // Prerequisite Relationships
+  prerequisites   Prerequisite[] @relation("CourseToPrerequisite")
+  required_for    Prerequisite[] @relation("PrerequisiteToCourse")
+}
+
+// 6. Enrollments Table (Many-to-Many Junction)
+model Enrollment {
+  enrollment_id   String   @id @default(uuid())
+  student_id      String
+  course_id       String
+  enrollment_date DateTime @default(now())
+  
+  student         Student  @relation(fields: [student_id], references: [student_id])
+  course          Course   @relation(fields: [course_id], references: [course_id])
+
+  @@unique([student_id, course_id]) // Constraint: Duplicate enrollment prevention
+}
+
+// 7. Prerequisites Table (Self-referencing Junction)
+model Prerequisite {
+  prerequisite_id        String @id @default(uuid())
+  course_id              String
+  prerequisite_course_id String
+
+  course                 Course @relation("CourseToPrerequisite", fields: [course_id], references: [course_id])
+  prerequisite_course    Course @relation("PrerequisiteToCourse", fields: [prerequisite_course_id], references: [course_id])
+
+  @@unique([course_id, prerequisite_course_id]) // Constraint: Unique prerequisite mapping
+}

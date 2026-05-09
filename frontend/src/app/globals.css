@@ -23,22 +23,22 @@
   }
 
   .dark {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --border: #1e293b;
+    --background: #000000;
+    --foreground: #ededed;
+    --border: #262626;
     --primary: #2fb39e;
     --primary-foreground: #ffffff;
     
     /* Sidebar */
-    --sidebar-bg: #1e293b;
-    --sidebar-fg: #cbd5e1;
-    --sidebar-accent: #0f172a;
-    --sidebar-border: #334155;
+    --sidebar-bg: #0a0a0a;
+    --sidebar-fg: #a3a3a3;
+    --sidebar-accent: #171717;
+    --sidebar-border: #262626;
     
     /* Card */
-    --card-bg: #1e293b;
-    --card-fg: #f8fafc;
-    --card-border: #334155;
+    --card-bg: #0a0a0a;
+    --card-fg: #ededed;
+    --card-border: #262626;
   }
 }
 
@@ -64,11 +64,11 @@
   border-radius: 3px;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #404040;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #525252;
 }

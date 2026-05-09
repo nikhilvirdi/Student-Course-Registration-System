@@ -12,7 +12,8 @@ import {
   Settings, 
   User, 
   LogOut,
-  Menu
+  Menu,
+  CheckSquare
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -24,7 +25,7 @@ export function cn(...inputs) {
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Courses', href: '/dashboard/courses', icon: BookOpen },
-  { name: 'My Enrollments', href: '/dashboard/enrollments', icon: GraduationCap },
+  { name: 'Tasks', href: '/dashboard/tasks', icon: CheckSquare },
   { name: 'Activity', href: '/dashboard/activity', icon: Activity },
   { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   { name: 'Documents', href: '/dashboard/documents', icon: Folder },

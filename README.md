@@ -68,9 +68,7 @@ The platform follows a modern SaaS-style dashboard architecture where students a
 | Authentication    | JWT Authentication              |
 | Routing           | React Router                    |
 | State Management  | Context API                     |
-| API Testing       | Postman                         |
 | Version Control   | Git, GitHub                     |
-| Development Tools | VS Code                         |
 
 ## Project Goal
 

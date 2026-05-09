@@ -124,7 +124,7 @@ export default function CoursesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {courses.map((course) => (
-          <div key={course.id} className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden hover:border-primary/50 transition-colors group">
+          <div key={course.id} className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden hover:border-primary/50 hover:shadow-md hover:-translate-y-1 transition-all duration-200 group">
             <div className="p-5 border-b border-card-border">
               <div className="flex justify-between items-start mb-3">
                 <span className={cn(

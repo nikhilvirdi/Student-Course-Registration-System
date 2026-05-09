@@ -62,7 +62,7 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-card border border-card-border rounded-xl p-5 shadow-sm">
+          <div key={index} className="bg-card border border-card-border rounded-xl p-5 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-200">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-sm font-medium text-sidebar-fg">{stat.title}</p>
@@ -109,19 +109,19 @@ export default function DashboardPage() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-sidebar-fg bg-sidebar-accent/50 uppercase font-semibold">
                   <tr>
-                    <th className="px-5 py-3 rounded-tl-lg">Course Code</th>
-                    <th className="px-5 py-3">Course Name</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Credits</th>
-                    <th className="px-5 py-3">Priority</th>
+                    <th className="px-4 py-3 rounded-tl-lg">Course Code</th>
+                    <th className="px-4 py-3">Course Name</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Credits</th>
+                    <th className="px-4 py-3">Priority</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-card-border">
                   {currentCourses.map((course) => (
                     <tr key={course.id} className="hover:bg-sidebar-accent/30 transition-colors">
-                      <td className="px-5 py-4 font-medium text-foreground">{course.id}</td>
-                      <td className="px-5 py-4 text-foreground">{course.name}</td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-3 font-medium text-foreground">{course.id}</td>
+                      <td className="px-4 py-3 text-foreground">{course.name}</td>
+                      <td className="px-4 py-3">
                         <span className={cn(
                           "px-2.5 py-1 rounded-full text-xs font-medium border",
                           course.status === 'Enrolled' 
@@ -131,8 +131,8 @@ export default function DashboardPage() {
                           {course.status}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-sidebar-fg">{course.credits} Cr.</td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-3 text-sidebar-fg">{course.credits} Cr.</td>
+                      <td className="px-4 py-3">
                         <span className="flex items-center gap-1.5 text-sidebar-fg">
                           {course.priority === 'High' && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
                           {course.priority === 'Medium' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
@@ -163,7 +163,7 @@ export default function DashboardPage() {
             
             <div className="p-5 space-y-4">
               {upcomingTasks.map((task) => (
-                <div key={task.id} className="group p-4 border border-card-border rounded-lg hover:border-primary/30 hover:bg-sidebar-accent/30 transition-all flex gap-3">
+                <div key={task.id} className="group p-4 border border-card-border rounded-lg hover:border-primary/30 hover:bg-sidebar-accent/30 hover:-translate-y-0.5 hover:shadow-sm transition-all duration-200 flex gap-3 cursor-pointer">
                   <button className="mt-0.5 text-sidebar-fg hover:text-primary transition-colors flex-shrink-0">
                     {task.completed ? (
                       <CheckCircle2 className="w-5 h-5 text-primary" />

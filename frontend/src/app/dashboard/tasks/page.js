@@ -78,9 +78,9 @@ export default function TasksPage() {
           </div>
         </div>
 
-        <div className="divide-y divide-card-border">
+        <div className="divide-y divide-card-border p-2">
           {tasks.map((task) => (
-            <div key={task.id} className="p-5 flex items-start gap-4 hover:bg-sidebar-accent/30 transition-colors group">
+            <div key={task.id} className="p-4 rounded-lg flex items-start gap-4 hover:bg-sidebar-accent/30 hover:-translate-y-0.5 hover:shadow-sm transition-all duration-200 group">
               <div className="mt-0.5">
                 {getStatusIcon(task.status)}
               </div>

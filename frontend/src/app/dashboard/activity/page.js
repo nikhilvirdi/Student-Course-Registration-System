@@ -73,7 +73,7 @@ const activities = [
 
 export default function ActivityPage() {
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <div className="flex items-center gap-3 border-b border-border pb-4">
         <div className="p-2 bg-primary/10 rounded-lg text-primary">
           <ActivityIcon className="w-6 h-6" />
@@ -84,33 +84,34 @@ export default function ActivityPage() {
         </div>
       </div>
 
-      <div className="bg-card border border-card-border rounded-xl shadow-sm p-6">
-        <div className="relative border-l border-card-border ml-4 space-y-8 pb-4">
+      <div className="bg-card border border-card-border rounded-xl shadow-sm p-6 w-full">
+        <div className="relative border-l-2 border-sidebar-accent ml-4 space-y-10 pb-4">
           {activities.map((activity, index) => (
-            <div key={activity.id} className="relative pl-8">
+            <div key={activity.id} className="relative pl-10 group">
               <div className={cn(
-                "absolute -left-4 top-0 w-8 h-8 rounded-full flex items-center justify-center border-4 border-card",
+                "absolute -left-4 top-0.5 w-8 h-8 rounded-full flex items-center justify-center border-[3px] border-card group-hover:scale-110 transition-transform duration-200",
                 activity.iconBg,
                 activity.iconColor
               )}>
                 <activity.icon className="w-3.5 h-3.5" />
               </div>
               
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                <div>
-                  <h4 className="text-base font-semibold text-foreground">{activity.title}</h4>
-                  <p className="text-sm text-sidebar-fg mt-1">{activity.description}</p>
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 p-4 bg-background border border-card-border hover:border-card-border/80 rounded-xl transition-colors shadow-sm group-hover:shadow-md w-full">
+                <div className="flex-1">
+                  <h4 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">{activity.title}</h4>
+                  <p className="text-sm text-sidebar-fg/80 mt-1.5 leading-relaxed">{activity.description}</p>
                 </div>
-                <span className="text-xs font-medium text-sidebar-fg whitespace-nowrap bg-sidebar-accent px-2.5 py-1 rounded-md">
+                <div className="flex items-center gap-2 text-xs font-semibold text-sidebar-fg bg-sidebar-accent px-3 py-1.5 rounded-md h-fit whitespace-nowrap">
+                  <Clock className="w-3.5 h-3.5 text-sidebar-fg/70" />
                   {activity.time}
-                </span>
+                </div>
               </div>
             </div>
           ))}
         </div>
         
-        <div className="pt-4 mt-4 border-t border-card-border text-center">
-          <button className="text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+        <div className="pt-6 mt-2 border-t border-card-border flex justify-center">
+          <button className="px-5 py-2.5 bg-sidebar-accent text-foreground text-sm font-semibold rounded-lg hover:bg-sidebar-accent/80 transition-colors">
             Load Older Activity
           </button>
         </div>

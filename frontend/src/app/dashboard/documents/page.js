@@ -132,7 +132,7 @@ export default function DocumentsPage() {
               </thead>
               <tbody className="divide-y divide-card-border">
                 {documents.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-sidebar-accent/30 transition-colors group">
+                  <tr key={doc.id} className="hover:bg-sidebar-accent/50 transition-all duration-200 group cursor-pointer relative hover:z-10">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {getFileIcon(doc.type)}
@@ -140,12 +140,12 @@ export default function DocumentsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-sidebar-accent text-sidebar-fg border border-card-border">
+                      <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-sidebar-accent text-sidebar-fg border border-card-border group-hover:border-primary/30 transition-colors">
                         {doc.course}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sidebar-fg">{doc.size}</td>
-                    <td className="px-4 py-3 text-sidebar-fg">{doc.modified}</td>
+                    <td className="px-4 py-3 text-sidebar-fg group-hover:text-foreground transition-colors">{doc.size}</td>
+                    <td className="px-4 py-3 text-sidebar-fg group-hover:text-foreground transition-colors">{doc.modified}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button className="p-2 text-sidebar-fg hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Download">

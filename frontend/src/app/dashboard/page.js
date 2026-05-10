@@ -118,8 +118,8 @@ export default function DashboardPage() {
                 </thead>
                 <tbody className="divide-y divide-card-border">
                   {currentCourses.map((course) => (
-                    <tr key={course.id} className="hover:bg-sidebar-accent/30 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">{course.id}</td>
+                    <tr key={course.id} className="hover:bg-sidebar-accent/50 transition-all duration-200 group cursor-pointer relative hover:z-10">
+                      <td className="px-4 py-3 font-medium text-foreground group-hover:text-primary transition-colors">{course.id}</td>
                       <td className="px-4 py-3 text-foreground">{course.name}</td>
                       <td className="px-4 py-3">
                         <span className={cn(
@@ -133,7 +133,7 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-4 py-3 text-sidebar-fg">{course.credits} Cr.</td>
                       <td className="px-4 py-3">
-                        <span className="flex items-center gap-1.5 text-sidebar-fg">
+                        <span className="flex items-center gap-1.5 text-sidebar-fg group-hover:text-foreground transition-colors">
                           {course.priority === 'High' && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
                           {course.priority === 'Medium' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
                           {course.priority === 'Low' && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}

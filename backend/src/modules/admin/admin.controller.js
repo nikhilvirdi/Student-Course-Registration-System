@@ -1,4 +1,5 @@
 const AdminService = require('./admin.service');
+const AuditService = require('./audit.service');
 
 const getAllEnrollments = async (req, res, next) => {
   try {
@@ -48,9 +49,22 @@ const getAggregateStats = async (req, res, next) => {
   }
 };
 
+const getSystemLogs = async (req, res, next) => {
+  try {
+    const logs = await AuditService.getLogs();
+    res.status(200).json({
+      success: true,
+      data: logs
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllEnrollments,
   getCourseStudents,
   getAllStudents,
-  getAggregateStats
+  getAggregateStats,
+  getSystemLogs
 };

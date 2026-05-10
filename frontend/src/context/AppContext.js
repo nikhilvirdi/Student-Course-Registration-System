@@ -16,7 +16,6 @@ export function AppProvider({ children }) {
   const [tasks, setTasks] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [activities, setActivities] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({
     courses: [],
@@ -35,8 +34,6 @@ export function AppProvider({ children }) {
       setIsAuthenticated(true);
     }
 
-    const savedActivities = localStorage.getItem('scrs_activities');
-    if (savedActivities) setActivities(JSON.parse(savedActivities));
     
     // Fetch real courses from backend
     const fetchCourses = async () => {
@@ -160,28 +157,11 @@ export function AppProvider({ children }) {
     else localStorage.removeItem('scrs_user');
   }, [user]);
 
-  useEffect(() => {
-    if (token) localStorage.setItem('scrs_token', token);
-    else localStorage.removeItem('scrs_token');
   }, [token]);
-
-  useEffect(() => {
-    localStorage.setItem('scrs_activities', JSON.stringify(activities));
-  }, [activities]);
 
   const API_BASE_URL = 'http://localhost:5000/api';
 
   // --- Actions ---
-
-  // Activity Actions (must be defined first — used by updateProfile, updatePassword, enrollCourse, etc.)
-  const addActivity = useCallback((activity) => {
-    const newActivity = {
-      id: Date.now(),
-      time: 'Just now',
-      ...activity
-    };
-    setActivities(prev => [newActivity, ...prev]);
-  }, []);
 
   // Auth Actions
   const login = useCallback(async (email, password) => {
@@ -240,7 +220,6 @@ export function AppProvider({ children }) {
     setTasks([]);
     setNotifications([]);
     setDocuments([]);
-    setActivities([]);
   }, []);
 
   // User Actions
@@ -253,17 +232,11 @@ export function AppProvider({ children }) {
       });
       
       setUser(prev => prev ? ({ ...prev, ...data.data }) : null);
-      addActivity({
-        user: 'You',
-        action: 'updated your profile',
-        target: 'Settings',
-        type: 'system'
-      });
       return data;
     } catch (err) {
       throw new Error(err.message || 'Network error');
     }
-  }, [token, addActivity]);
+  }, [token]);
 
   const updatePassword = useCallback(async (currentPassword, newPassword) => {
     try {
@@ -273,17 +246,11 @@ export function AppProvider({ children }) {
         body: { currentPassword, newPassword }
       });
       
-      addActivity({
-        user: 'You',
-        action: 'changed your password',
-        target: 'Security',
-        type: 'security'
-      });
       return data;
     } catch (err) {
       throw new Error(err.message || 'Network error');
     }
-  }, [token, addActivity]);
+  }, [token]);
 
   const updatePreferences = useCallback((updates) => {
     setUser(prev => prev ? ({
@@ -302,18 +269,11 @@ export function AppProvider({ children }) {
       });
       
       setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: 'Enrolled' } : c));
-      
-      addActivity({
-        user: 'You',
-        action: 'enrolled in a course',
-        target: courses.find(c => c.id === courseId)?.name || 'Course',
-        type: 'course'
-      });
       return data;
     } catch (err) {
       throw new Error(err.message || 'Network error');
     }
-  }, [token, courses, addActivity]);
+  }, [token, courses]);
 
   // Grade Actions
   const getMyGrades = useCallback(async () => {
@@ -395,12 +355,6 @@ export function AppProvider({ children }) {
         }, ...prev]);
       }
 
-      addActivity({
-        user: 'You',
-        action: 'created a new task',
-        target: task.title,
-        type: 'task'
-      });
       return data;
     } catch (err) {
       // Fallback to local if backend fails
@@ -413,7 +367,7 @@ export function AppProvider({ children }) {
       setTasks(prev => [newTask, ...prev]);
       throw err;
     }
-  }, [token, addActivity]);
+  }, [token]);
 
   const updateTask = useCallback(async (id, updates) => {
     // Optimistic update
@@ -449,20 +403,7 @@ export function AppProvider({ children }) {
     if (!task) return;
 
     const newState = !task.completed;
-    setTasks(prev => prev.map(t => {
-      if (t.id === id) {
-        if (newState) {
-          addActivity({
-            user: 'You',
-            action: 'completed the task',
-            target: t.title,
-            type: 'task'
-          });
-        }
-        return { ...t, completed: newState };
-      }
-      return t;
-    }));
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: newState } : t));
 
     try {
       const backendId = task._backendId || id;
@@ -474,7 +415,7 @@ export function AppProvider({ children }) {
     } catch (err) {
       console.error('Failed to toggle task on backend:', err);
     }
-  }, [token, tasks, addActivity]);
+  }, [token, tasks]);
 
   // =============================================
   // Notification Actions — NOW BACKED BY REAL API
@@ -547,12 +488,6 @@ export function AppProvider({ children }) {
         }, ...prev]);
       }
 
-      addActivity({
-        user: 'You',
-        action: 'uploaded a document',
-        target: doc.name,
-        type: 'upload'
-      });
       return data;
     } catch (err) {
       // Fallback to local
@@ -564,7 +499,7 @@ export function AppProvider({ children }) {
       setDocuments(prev => [newDoc, ...prev]);
       throw err;
     }
-  }, [token, addActivity]);
+  }, [token]);
 
   const deleteDocument = useCallback(async (id) => {
     const docToDelete = documents.find(d => d.id === id);
@@ -604,7 +539,6 @@ export function AppProvider({ children }) {
     tasks,
     notifications,
     documents,
-    activities,
     searchQuery,
     setSearchQuery,
     searchResults,
@@ -624,7 +558,6 @@ export function AppProvider({ children }) {
     deleteNotification,
     uploadDocument,
     deleteDocument,
-    addActivity,
     getMyGrades,
     getMyGPA,
     assignGrade,

@@ -157,3 +157,15 @@ model Document {
   student     Student  @relation(fields: [student_id], references: [student_id])
   uploaded_at DateTime @default(now())
 }
+
+// 11. Audit Logs (System Activity)
+model AuditLog {
+  log_id      String   @id @default(uuid())
+  user_id     String   
+  user_name   String
+  user_role   String
+  action      String   
+  target      String   
+  type        String   @default("system") // course, task, security, upload, system
+  created_at  DateTime @default(now())
+}

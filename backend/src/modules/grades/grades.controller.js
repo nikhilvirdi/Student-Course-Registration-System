@@ -1,8 +1,21 @@
 const gradesService = require('./grades.service');
+const auditService = require('../admin/audit.service');
 
 const assignGrade = async (req, res, next) => {
   try {
+    const { enrollment_id, marks_obtained } = req.body;
     const grade = await gradesService.assignGrade(req.body);
+    
+    // Log action
+    await auditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'ASSIGN_GRADE',
+      target: `Enrollment: ${enrollment_id}, Marks: ${marks_obtained}`,
+      type: 'system'
+    });
+
     res.status(201).json({
       success: true,
       message: 'Grade assigned successfully',
@@ -62,3 +75,4 @@ module.exports = {
   getGPA,
   getStudentGrades
 };
+

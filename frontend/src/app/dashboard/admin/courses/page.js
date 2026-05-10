@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Book, Edit2, Trash2, Plus, AlertCircle, Calendar, MapPin } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
+import { apiFetch, cn } from '@/lib/utils';
 
 const EMPTY_FORM = {
   course_name:    '',
@@ -38,34 +39,25 @@ export default function AdminCoursesPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [coursesRes, deptRes, facRes] = await Promise.all([
-        fetch('http://localhost:5000/api/courses'),
-        fetch('http://localhost:5000/api/departments'),
-        fetch('http://localhost:5000/api/faculty'),
+      const [coursesData, deptData, facData] = await Promise.all([
+        apiFetch('/courses'),
+        apiFetch('/departments'),
+        apiFetch('/faculty'),
       ]);
 
-      if (coursesRes.ok) {
-        const data = await coursesRes.json();
-        setCourses(data.data || []);
+      setCourses(coursesData.data || []);
+      setDepartments(deptData || []);
+      
+      if (deptData?.length > 0 && !editingId) {
+        setFormData(prev => ({ ...prev, department_id: deptData[0].department_id }));
       }
 
-      if (deptRes.ok) {
-        const data = await deptRes.json();
-        setDepartments(data);
-        if (data.length > 0 && !editingId) {
-          setFormData(prev => ({ ...prev, department_id: data[0].department_id }));
-        }
-      }
-
-      if (facRes.ok) {
-        const data = await facRes.json();
-        setFaculties(data);
-        if (data.length > 0 && !editingId) {
-          setFormData(prev => ({ ...prev, faculty_id: data[0].faculty_id }));
-        }
+      setFaculties(facData || []);
+      if (facData?.length > 0 && !editingId) {
+        setFormData(prev => ({ ...prev, faculty_id: facData[0].faculty_id }));
       }
     } catch (err) {
-      setError('Failed to fetch data');
+      setError(err.message || 'Failed to fetch data');
     } finally {
       setLoading(false);
     }
@@ -86,27 +78,19 @@ export default function AdminCoursesPage() {
     e.preventDefault();
     setError('');
     try {
-      const url    = editingId ? `http://localhost:5000/api/courses/${editingId}` : 'http://localhost:5000/api/courses';
+      const path = editingId ? `/courses/${editingId}` : '/courses';
       const method = editingId ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      await apiFetch(path, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
+        token,
+        body: formData,
       });
 
-      if (res.ok) {
-        resetForm();
-        fetchData();
-      } else {
-        const data = await res.json();
-        setError(data.message || `Failed to ${editingId ? 'update' : 'create'} course`);
-      }
+      resetForm();
+      fetchData();
     } catch (err) {
-      setError(`Failed to ${editingId ? 'update' : 'create'} course`);
+      setError(err.message || `Failed to ${editingId ? 'update' : 'create'} course`);
     }
   };
 
@@ -132,19 +116,13 @@ export default function AdminCoursesPage() {
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this course?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/courses/${id}`, {
+      await apiFetch(`/courses/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
+        token,
       });
-
-      if (res.ok) {
-        fetchData();
-      } else {
-        const data = await res.json();
-        setError(data.message || 'Failed to delete course');
-      }
+      fetchData();
     } catch (err) {
-      setError('Failed to delete course');
+      setError(err.message || 'Failed to delete course');
     }
   };
 

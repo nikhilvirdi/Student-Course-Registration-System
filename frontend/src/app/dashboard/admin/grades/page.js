@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Award, BookOpen, User, CheckCircle, Search } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { cn } from '@/lib/utils';
+import { cn, apiFetch } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 import PageHeader from '@/components/ui/PageHeader';
 import SearchInput from '@/components/ui/SearchInput';
 
 export default function AdminGradesPage() {
-  const { getAllEnrollments, assignGrade } = useApp();
+  const { token, user } = useApp();
   const { toast } = useToast();
   
   const [enrollments, setEnrollments] = useState([]);
@@ -17,19 +17,23 @@ export default function AdminGradesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [submitting, setSubmitting] = useState(null);
 
+  if (user?.role !== 'ADMIN') {
+    return <div className="p-6 text-red-500 font-bold text-center">Access Denied. Admins only.</div>;
+  }
+
   useEffect(() => {
     fetchEnrollments();
-  }, []);
+  }, [token]);
 
   const fetchEnrollments = async () => {
     try {
       setLoading(true);
-      const res = await getAllEnrollments();
+      const res = await apiFetch('/admin/enrollments');
       if (res.success) {
         setEnrollments(res.data);
       }
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to load enrollments.', type: 'error' });
+      toast({ title: 'Error', description: error.message || 'Failed to load enrollments.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -43,10 +47,18 @@ export default function AdminGradesPage() {
     
     try {
       setSubmitting(enrollmentId);
-      const res = await assignGrade(enrollmentId, parseFloat(marks));
+      const res = await apiFetch('/grades', {
+        method: 'POST',
+        token,
+        body: { 
+          enrollment_id: enrollmentId, 
+          marks_obtained: parseFloat(marks) 
+        }
+      });
+
       if (res.success) {
         toast({ title: 'Success', description: 'Grade assigned successfully.', type: 'success' });
-        // Update local state to reflect the new grade
+        // Update local state to reflect the new grade and COMPLETED status
         setEnrollments(prev => prev.map(e => 
           e.enrollment_id === enrollmentId 
             ? { ...e, status: 'COMPLETED', grade: res.data }

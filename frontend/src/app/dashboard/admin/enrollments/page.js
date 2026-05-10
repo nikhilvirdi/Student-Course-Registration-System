@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { GraduationCap, AlertCircle, FileText, Calendar } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
-import { cn } from '@/lib/utils';
+import { apiFetch, cn } from '@/lib/utils';
 
 export default function AdminEnrollmentsPage() {
   const { token, user } = useApp();
@@ -16,21 +16,10 @@ export default function AdminEnrollmentsPage() {
     const fetchEnrollments = async () => {
       try {
         setLoading(true);
-        const res = await fetch('http://localhost:5000/api/admin/enrollments', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          setEnrollments(data.data || []);
-        } else {
-          const data = await res.json();
-          setError(data.message || 'Failed to fetch enrollments');
-        }
+        const data = await apiFetch('/admin/enrollments', { token });
+        setEnrollments(data.data || []);
       } catch (err) {
-        setError('Network error: Failed to fetch enrollments');
+        setError(err.message || 'Failed to fetch enrollments');
       } finally {
         setLoading(false);
       }

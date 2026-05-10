@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Users, AlertCircle, ChevronDown, ChevronUp, Mail, GraduationCap } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
-import { cn } from '@/lib/utils';
+import { apiFetch, cn } from '@/lib/utils';
 
 export default function AdminStudentsPage() {
   const { token, user } = useApp();
@@ -17,21 +17,10 @@ export default function AdminStudentsPage() {
     const fetchStudents = async () => {
       try {
         setLoading(true);
-        const res = await fetch('http://localhost:5000/api/admin/students', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          setStudents(data.data || []);
-        } else {
-          const data = await res.json();
-          setError(data.message || 'Failed to fetch students');
-        }
+        const data = await apiFetch('/admin/students', { token });
+        setStudents(data.data || []);
       } catch (err) {
-        setError('Network error: Failed to fetch students');
+        setError(err.message || 'Failed to fetch students');
       } finally {
         setLoading(false);
       }

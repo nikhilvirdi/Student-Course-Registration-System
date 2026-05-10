@@ -20,21 +20,27 @@ import {
 import { cn } from '@/lib/utils';
 
 const getNavItems = (role) => {
-  const items = [
+  if (role === 'ADMIN') {
+    return [
+      { name: 'Admin Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Manage Students', href: '/dashboard/admin/students', icon: Users },
+      { name: 'Manage Courses', href: '/dashboard/admin/courses', icon: BookOpen },
+      { name: 'Enrollment Records', href: '/dashboard/admin/enrollments', icon: GraduationCap },
+      { name: 'Grade Management', href: '/dashboard/admin/grades', icon: Award },
+      { name: 'System Activity', href: '/dashboard/admin/activity', icon: Activity },
+    ];
+  }
+
+  // Student specific navigation
+  return [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Courses', href: '/dashboard/courses', icon: BookOpen },
-    { name: 'Grades', href: role === 'ADMIN' ? '/dashboard/admin/grades' : '/dashboard/grades', icon: Award },
+    { name: 'Grades', href: '/dashboard/grades', icon: Award },
     { name: 'Tasks', href: '/dashboard/tasks', icon: CheckSquare },
     { name: 'Activity', href: '/dashboard/activity', icon: Activity },
     { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     { name: 'Documents', href: '/dashboard/documents', icon: Folder },
   ];
-  if (role === 'ADMIN') {
-    items.push({ name: 'Manage Courses', href: '/dashboard/admin/courses', icon: BookOpen });
-    items.push({ name: 'Manage Students', href: '/dashboard/admin/students', icon: Users });
-    items.push({ name: 'Enrollment Records', href: '/dashboard/admin/enrollments', icon: GraduationCap });
-  }
-  return items;
 };
 
 const bottomNavItems = [

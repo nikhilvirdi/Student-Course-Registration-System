@@ -20,4 +20,7 @@ router.get('/students', adminController.getAllStudents);
 // GET /api/admin/stats
 router.get('/stats', adminController.getAggregateStats);
 
+// GET /api/admin/logs
+router.get('/logs', adminController.getSystemLogs);
+
 module.exports = router;

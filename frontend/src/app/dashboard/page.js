@@ -6,9 +6,14 @@ import { cn } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
 import Link from 'next/link';
 import { displayName } from '@/lib/utils';
+import AdminDashboard from './AdminDashboard';
 
 export default function DashboardPage() {
   const { courses, tasks, activities, user } = useApp();
+
+  if (user?.role === 'ADMIN') {
+    return <AdminDashboard user={user} />;
+  }
 
   // Calculate stats from dynamic data
   const enrolledCourses = courses.filter(c => c.status === 'Enrolled');

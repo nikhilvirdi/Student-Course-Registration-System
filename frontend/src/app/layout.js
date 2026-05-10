@@ -2,6 +2,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastProvider } from '@/components/ui/Toast';
+import { AppProvider } from '@/context/AppContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -20,9 +21,11 @@ export default function RootLayout({ children }) {
           enableSystem
           disableTransitionOnChange
         >
-          <ToastProvider>
-            {children}
-          </ToastProvider>
+          <AppProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </AppProvider>
         </ThemeProvider>
       </body>
     </html>

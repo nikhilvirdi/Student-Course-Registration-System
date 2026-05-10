@@ -8,51 +8,56 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-const stats = [
-  {
-    title: 'Total Credits Earned',
-    value: '45',
-    trend: '+12%',
-    trendUp: true,
-    progress: 45,
-    icon: BookOpen,
-  },
-  {
-    title: 'Active Courses',
-    value: '4',
-    trend: 'Current Semester',
-    trendUp: true,
-    progress: 100,
-    icon: Users,
-  },
-  {
-    title: 'Pending Assignments',
-    value: '7',
-    trend: '-2',
-    trendUp: false,
-    progress: 30,
-    icon: Clock,
-  },
-];
-
-const currentCourses = [
-  { id: 'CS301', name: 'Data Structures & Algorithms', status: 'Enrolled', nextClass: 'Mon, 10:00 AM', credits: 4, priority: 'High' },
-  { id: 'CS302', name: 'Database Management Systems', status: 'Enrolled', nextClass: 'Tue, 11:30 AM', credits: 3, priority: 'Medium' },
-  { id: 'MTH201', name: 'Discrete Mathematics', status: 'Waitlisted', nextClass: 'Wed, 09:00 AM', credits: 3, priority: 'Low' },
-  { id: 'ENG101', name: 'Technical Writing', status: 'Enrolled', nextClass: 'Thu, 02:00 PM', credits: 2, priority: 'Medium' },
-];
-
-const upcomingTasks = [
-  { id: 1, title: 'Submit DBMS Final Project', course: 'CS302', date: 'May 15, 2026', author: 'Prof. Smith', completed: false },
-  { id: 2, title: 'Midterm Evaluation', course: 'CS301', date: 'May 18, 2026', author: 'Dr. Johnson', completed: false },
-  { id: 3, title: 'Read Chapter 4 & 5', course: 'ENG101', date: 'May 12, 2026', author: 'Prof. Davis', completed: true },
-];
+import { useApp } from '@/context/AppContext';
+import Link from 'next/link';
 
 export default function DashboardPage() {
+  const { courses, tasks, activities, user } = useApp();
+
+  // Calculate stats from dynamic data
+  const enrolledCourses = courses.filter(c => c.status === 'Enrolled');
+  const pendingTasks = tasks.filter(t => !t.completed);
+  const totalCredits = enrolledCourses.reduce((sum, c) => sum + (c.credits || 0), 0);
+
+  const stats = [
+    {
+      title: 'Total Credits',
+      value: totalCredits,
+      trend: '+12% from last term',
+      trendUp: true,
+      progress: (totalCredits / 20) * 100, // Assuming 20 credits is full load
+      icon: BookOpen,
+    },
+    {
+      title: 'Active Courses',
+      value: enrolledCourses.length,
+      trend: 'Current Semester',
+      trendUp: true,
+      progress: 100,
+      icon: Users,
+    },
+    {
+      title: 'Pending Tasks',
+      value: pendingTasks.length,
+      trend: pendingTasks.length > 5 ? 'High workload' : 'Manageable',
+      trendUp: pendingTasks.length < 5,
+      progress: Math.max(0, 100 - (pendingTasks.length * 10)),
+      icon: Clock,
+    },
+  ];
+
+  // Get next 5 courses
+  const displayCourses = enrolledCourses.slice(0, 5);
+  // Get next 3 pending tasks
+  const displayTasks = pendingTasks.slice(0, 3);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Welcome back, {user.firstName}!</h1>
+          <p className="text-sidebar-fg text-sm mt-1">Here's what's happening with your studies today.</p>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-sidebar-fg">Current Term:</span>
           <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">Spring 2026</span>
@@ -84,7 +89,7 @@ export default function DashboardPage() {
             <div className="mt-4 h-2 bg-sidebar-accent rounded-full overflow-hidden">
               <div 
                 className={cn("h-full rounded-full", stat.trendUp ? "bg-primary" : "bg-amber-500")}
-                style={{ width: `${stat.progress}%` }}
+                style={{ width: `${Math.min(100, stat.progress)}%` }}
               />
             </div>
           </div>
@@ -100,9 +105,9 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-semibold text-foreground">Current Courses</h2>
                 <p className="text-sm text-sidebar-fg mt-1">Manage your active enrollments and schedule.</p>
               </div>
-              <button className="text-sm font-medium text-primary hover:text-primary/80 bg-primary/10 px-4 py-2 rounded-lg transition-colors">
-                View Catalog
-              </button>
+              <Link href="/dashboard/courses" className="text-sm font-medium text-primary hover:text-primary/80 bg-primary/10 px-4 py-2 rounded-lg transition-colors">
+                View All
+              </Link>
             </div>
             
             <div className="overflow-x-auto">
@@ -113,13 +118,13 @@ export default function DashboardPage() {
                     <th className="px-4 py-3">Course Name</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Credits</th>
-                    <th className="px-4 py-3">Priority</th>
+                    <th className="px-4 py-3">Next Class</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-card-border">
-                  {currentCourses.map((course) => (
+                  {displayCourses.length > 0 ? displayCourses.map((course) => (
                     <tr key={course.id} className="hover:bg-sidebar-accent/50 transition-all duration-200 group cursor-pointer relative hover:z-10">
-                      <td className="px-4 py-3 font-medium text-foreground group-hover:text-primary transition-colors">{course.id}</td>
+                      <td className="px-4 py-3 font-medium text-foreground group-hover:text-primary transition-colors">{course.code || course.id}</td>
                       <td className="px-4 py-3 text-foreground">{course.name}</td>
                       <td className="px-4 py-3">
                         <span className={cn(
@@ -131,17 +136,18 @@ export default function DashboardPage() {
                           {course.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sidebar-fg">{course.credits} Cr.</td>
-                      <td className="px-4 py-3">
-                        <span className="flex items-center gap-1.5 text-sidebar-fg group-hover:text-foreground transition-colors">
-                          {course.priority === 'High' && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
-                          {course.priority === 'Medium' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
-                          {course.priority === 'Low' && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-                          {course.priority}
-                        </span>
+                      <td className="px-4 py-3 text-sidebar-fg">{course.credits || 3} Cr.</td>
+                      <td className="px-4 py-3 text-sidebar-fg group-hover:text-foreground transition-colors">
+                        {course.nextClass || 'TBA'}
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan="5" className="px-4 py-8 text-center text-sidebar-fg italic">
+                        No active courses found.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -154,42 +160,42 @@ export default function DashboardPage() {
             <div className="p-5 border-b border-card-border flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Upcoming Tasks</h2>
-                <p className="text-sm text-sidebar-fg mt-1">Deadlines and assignments.</p>
+                <p className="text-sm text-sidebar-fg mt-1">Pending deadlines.</p>
               </div>
-              <button className="p-2 hover:bg-sidebar-accent rounded-lg text-sidebar-fg transition-colors">
+              <Link href="/dashboard/tasks" className="p-2 hover:bg-sidebar-accent rounded-lg text-sidebar-fg transition-colors">
                 <MoreHorizontal className="w-5 h-5" />
-              </button>
+              </Link>
             </div>
             
             <div className="p-5 space-y-4">
-              {upcomingTasks.map((task) => (
+              {displayTasks.length > 0 ? displayTasks.map((task) => (
                 <div key={task.id} className="group p-4 border border-card-border rounded-lg hover:border-primary/30 hover:bg-sidebar-accent/30 hover:-translate-y-0.5 hover:shadow-sm transition-all duration-200 flex gap-3 cursor-pointer">
-                  <button className="mt-0.5 text-sidebar-fg hover:text-primary transition-colors flex-shrink-0">
-                    {task.completed ? (
-                      <CheckCircle2 className="w-5 h-5 text-primary" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-md border-2 border-sidebar-fg/40 group-hover:border-primary" />
-                    )}
-                  </button>
+                  <div className="mt-0.5 text-sidebar-fg hover:text-primary transition-colors flex-shrink-0">
+                    <div className="w-5 h-5 rounded-md border-2 border-sidebar-fg/40 group-hover:border-primary" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className={cn(
-                      "text-sm font-medium text-foreground truncate",
-                      task.completed && "line-through text-sidebar-fg"
-                    )}>
+                    <h4 className="text-sm font-medium text-foreground truncate">
                       {task.title}
                     </h4>
                     <p className="text-xs text-sidebar-fg mt-1 flex items-center gap-2">
-                      <span className="font-medium">{task.course}</span>
+                      <span className="font-medium text-primary">{task.course || 'General'}</span>
                       <span>•</span>
-                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {task.date}</span>
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {task.date || 'Soon'}</span>
                     </p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="py-8 text-center text-sidebar-fg italic text-sm">
+                  All caught up! No pending tasks.
+                </div>
+              )}
               
-              <button className="w-full py-2.5 mt-2 border border-dashed border-card-border rounded-lg text-sm font-medium text-sidebar-fg hover:text-foreground hover:border-sidebar-fg transition-colors flex items-center justify-center gap-2">
+              <Link 
+                href="/dashboard/tasks"
+                className="w-full py-2.5 mt-2 border border-dashed border-card-border rounded-lg text-sm font-medium text-sidebar-fg hover:text-foreground hover:border-sidebar-fg transition-colors flex items-center justify-center gap-2"
+              >
                 + View all tasks
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -197,3 +203,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

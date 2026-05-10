@@ -23,6 +23,8 @@ app.use('/api/auth', require('./modules/auth/auth.routes'));
 app.use('/api/courses', require('./modules/courses/courses.routes'));
 app.use('/api/students', require('./modules/students/students.routes'));
 app.use('/api/enrollments', require('./modules/enrollments/enrollments.routes'));
+app.use('/api/departments', require('./modules/departments/departments.routes'));
+app.use('/api/faculty', require('./modules/faculty/faculty.routes'));
 
 // Global Error Handler (Must be last)
 app.use(errorHandler);

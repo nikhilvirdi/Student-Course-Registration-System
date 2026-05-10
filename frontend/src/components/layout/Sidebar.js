@@ -35,8 +35,20 @@ const bottomNavItems = [
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
+import { useApp } from '@/context/AppContext';
+import { useRouter } from 'next/navigation';
+
 export default function Sidebar({ isOpen, setIsOpen }) {
   const pathname = usePathname();
+  const { user, logout } = useApp();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.push('/auth/login');
+  };
+
+  if (!user) return null;
 
   return (
     <>
@@ -56,7 +68,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         {/* Logo area */}
         <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
               <span className="text-white font-bold text-lg">S</span>
             </div>
             <span className="text-foreground font-bold text-xl tracking-tight">SCRS</span>
@@ -69,7 +81,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             Main Menu
           </div>
           {navItems.map((item) => {
-            // Dashboard should only be active on exactly /dashboard or /dashboard/
             const isActive = item.href === '/dashboard' 
               ? pathname === '/dashboard' || pathname === '/dashboard/'
               : pathname === item.href || pathname?.startsWith(`${item.href}/`);
@@ -79,13 +90,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all group",
                   isActive 
-                    ? "bg-sidebar-accent text-foreground font-semibold" 
+                    ? "bg-sidebar-accent text-foreground font-semibold shadow-sm" 
                     : "text-sidebar-fg hover:bg-sidebar-accent/50 hover:text-foreground"
                 )}
               >
-                <item.icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-sidebar-fg")} />
+                <item.icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", isActive ? "text-primary" : "text-sidebar-fg")} />
                 {item.name}
               </Link>
             );
@@ -101,13 +112,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all group",
                   isActive 
-                    ? "bg-sidebar-accent text-foreground font-semibold" 
+                    ? "bg-sidebar-accent text-foreground font-semibold shadow-sm" 
                     : "text-sidebar-fg hover:bg-sidebar-accent/50 hover:text-foreground"
                 )}
               >
-                <item.icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-sidebar-fg")} />
+                <item.icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", isActive ? "text-primary" : "text-sidebar-fg")} />
                 {item.name}
               </Link>
             );
@@ -115,17 +126,20 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
           {/* User Profile Section */}
           <div className="mt-4 pt-4 border-t border-sidebar-border/50">
-            <Link href="/dashboard/profile" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-accent/50 transition-colors mb-2">
-              <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold">
-                JD
+            <Link href="/dashboard/profile" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-accent/50 transition-all mb-2 group">
+              <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs group-hover:scale-105 transition-transform">
+                {user.avatar || (user.firstName[0] + user.lastName[0])}
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate">John Doe</p>
-                <p className="text-xs text-sidebar-fg/70 truncate">Admin Role</p>
+                <p className="text-sm font-semibold text-foreground truncate">{user.firstName} {user.lastName}</p>
+                <p className="text-xs text-sidebar-fg/70 truncate">{user.role}</p>
               </div>
             </Link>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
-              <LogOut className="w-5 h-5" />
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors group"
+            >
+              <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
               Logout
             </button>
           </div>

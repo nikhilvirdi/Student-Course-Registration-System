@@ -12,14 +12,26 @@ const registerStudent = async (data) => {
   // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  // Handle default department placeholder from frontend
+  let actualDeptId = department_id;
+  if (!actualDeptId || actualDeptId === 'default-uuid-placeholder') {
+    let firstDept = await prisma.department.findFirst();
+    if (!firstDept) {
+      firstDept = await prisma.department.create({
+        data: { department_name: 'General Studies' }
+      });
+    }
+    actualDeptId = firstDept.department_id;
+  }
+
   // Create student
   const student = await prisma.student.create({
     data: {
       name,
       email,
       password: hashedPassword,
-      department_id,
-      semester: parseInt(semester)
+      department_id: actualDeptId,
+      semester: parseInt(semester) || 1
     }
   });
 

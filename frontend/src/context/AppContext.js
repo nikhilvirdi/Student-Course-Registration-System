@@ -157,8 +157,6 @@ export function AppProvider({ children }) {
     else localStorage.removeItem('scrs_user');
   }, [user]);
 
-  }, [token]);
-
   const API_BASE_URL = 'http://localhost:5000/api';
 
   // --- Actions ---

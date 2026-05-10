@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { cn, displayName, apiFetch, formatDate } from '@/lib/utils';
 import Link from 'next/link';
+import { useApp } from '@/context/AppContext';
 
-export default function AdminDashboard({ user }) {
+export default function AdminDashboardPage() {
+  const { user } = useApp();
   const [stats, setStats] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,8 @@ export default function AdminDashboard({ user }) {
       color: 'purple'
     },
   ];
+
+  if (!user) return null;
 
   return (
     <div className="space-y-6">

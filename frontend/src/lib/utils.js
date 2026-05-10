@@ -99,6 +99,7 @@ export async function apiFetch(path, { method = 'GET', token, body } = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
+    cache: 'no-store',
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 

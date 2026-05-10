@@ -33,18 +33,20 @@ export function AppProvider({ children }) {
       setUser(JSON.parse(savedUser));
       setIsAuthenticated(true);
     }
+  }, []);
 
-    
-    // Fetch real courses from backend
+  // Fetch real courses and user-specific data from backend when token/auth changes
+  useEffect(() => {
     const fetchCourses = async () => {
       try {
+        setLoading(true);
         const data = await apiFetch('/courses');
         if (data.success && data.data) {
           let enrolledCourseIds = new Set();
           
-          if (savedToken) {
+          if (token) {
             try {
-              const enrolData = await apiFetch('/enrollments/my', { token: savedToken });
+              const enrolData = await apiFetch('/enrollments/my', { token });
               if (enrolData.success && enrolData.data) {
                 enrolData.data.forEach(e => enrolledCourseIds.add(e.course_id));
               }
@@ -95,7 +97,7 @@ export function AppProvider({ children }) {
     };
     
     fetchCourses();
-  }, []);
+  }, [token]);
 
   // Fetch tasks, notifications, documents from backend when token is available
   useEffect(() => {

@@ -20,17 +20,6 @@ import {
 import { cn } from '@/lib/utils';
 
 const getNavItems = (role) => {
-  if (role === 'ADMIN') {
-    return [
-      { name: 'Admin Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { name: 'Manage Students', href: '/dashboard/admin/students', icon: Users },
-      { name: 'Manage Courses', href: '/dashboard/admin/courses', icon: BookOpen },
-      { name: 'Enrollment Records', href: '/dashboard/admin/enrollments', icon: GraduationCap },
-      { name: 'Grade Management', href: '/dashboard/admin/grades', icon: Award },
-      { name: 'System Activity', href: '/dashboard/admin/activity', icon: Activity },
-    ];
-  }
-
   // Student specific navigation
   return [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },

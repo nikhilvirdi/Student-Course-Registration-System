@@ -6,13 +6,21 @@ import { cn } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
 import Link from 'next/link';
 import { displayName } from '@/lib/utils';
-import AdminDashboard from './AdminDashboard';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function DashboardPage() {
   const { courses, tasks, activities, user } = useApp();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      router.push('/dashboard/admin');
+    }
+  }, [user, router]);
 
   if (user?.role === 'ADMIN') {
-    return <AdminDashboard user={user} />;
+    return null;
   }
 
   // Calculate stats from dynamic data

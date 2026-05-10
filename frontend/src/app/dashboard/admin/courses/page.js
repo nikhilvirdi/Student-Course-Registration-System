@@ -46,15 +46,15 @@ export default function AdminCoursesPage() {
       ]);
 
       setCourses(coursesData.data || []);
-      setDepartments(deptData || []);
+      setDepartments(deptData.data || []);
       
-      if (deptData?.length > 0 && !editingId) {
-        setFormData(prev => ({ ...prev, department_id: deptData[0].department_id }));
+      if (deptData.data?.length > 0 && !editingId) {
+        setFormData(prev => ({ ...prev, department_id: deptData.data[0].department_id }));
       }
 
-      setFaculties(facData || []);
-      if (facData?.length > 0 && !editingId) {
-        setFormData(prev => ({ ...prev, faculty_id: facData[0].faculty_id }));
+      setFaculties(facData.data || []);
+      if (facData.data?.length > 0 && !editingId) {
+        setFormData(prev => ({ ...prev, faculty_id: facData.data[0].faculty_id }));
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch data');

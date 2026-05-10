@@ -24,7 +24,7 @@ export function AppProvider({ children }) {
     documents: [],
   });
 
-  // --- Persistence (Local Storage) ---
+  // --- Persistence (Local Storage for auth + activities) ---
   useEffect(() => {
     const savedToken = localStorage.getItem('scrs_token');
     const savedUser = localStorage.getItem('scrs_user');
@@ -34,15 +34,6 @@ export function AppProvider({ children }) {
       setUser(JSON.parse(savedUser));
       setIsAuthenticated(true);
     }
-
-    const savedTasks = localStorage.getItem('scrs_tasks');
-    if (savedTasks) setTasks(JSON.parse(savedTasks));
-
-    const savedNotifications = localStorage.getItem('scrs_notifications');
-    if (savedNotifications) setNotifications(JSON.parse(savedNotifications));
-
-    const savedDocuments = localStorage.getItem('scrs_documents');
-    if (savedDocuments) setDocuments(JSON.parse(savedDocuments));
 
     const savedActivities = localStorage.getItem('scrs_activities');
     if (savedActivities) setActivities(JSON.parse(savedActivities));
@@ -109,9 +100,60 @@ export function AppProvider({ children }) {
     fetchCourses();
   }, []);
 
+  // Fetch tasks, notifications, documents from backend when token is available
   useEffect(() => {
-    localStorage.setItem('scrs_tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (!token) return;
+
+    const fetchUserData = async () => {
+      try {
+        const [tasksRes, notifRes, docsRes] = await Promise.all([
+          apiFetch('/tasks', { token }).catch(() => ({ success: false })),
+          apiFetch('/notifications', { token }).catch(() => ({ success: false })),
+          apiFetch('/documents', { token }).catch(() => ({ success: false })),
+        ]);
+
+        if (tasksRes.success && tasksRes.data) {
+          setTasks(tasksRes.data.map(t => ({
+            id: t.task_id,
+            title: t.title,
+            category: t.category,
+            priority: t.priority,
+            due_date: t.due_date,
+            completed: t.completed,
+            _backendId: t.task_id,
+          })));
+        }
+
+        if (notifRes.success && notifRes.data) {
+          setNotifications(notifRes.data.map(n => ({
+            id: n.notification_id,
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            read: n.read,
+            time: new Date(n.created_at).toLocaleString(),
+            _backendId: n.notification_id,
+          })));
+        }
+
+        if (docsRes.success && docsRes.data) {
+          setDocuments(docsRes.data.map(d => ({
+            id: d.document_id,
+            name: d.name,
+            type: d.type,
+            size: d.size,
+            url: d.url,
+            date: new Date(d.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            _backendId: d.document_id,
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch user data:", err);
+      }
+    };
+
+    fetchUserData();
+  }, [token]);
 
   useEffect(() => {
     if (user) localStorage.setItem('scrs_user', JSON.stringify(user));
@@ -122,18 +164,6 @@ export function AppProvider({ children }) {
     if (token) localStorage.setItem('scrs_token', token);
     else localStorage.removeItem('scrs_token');
   }, [token]);
-
-  useEffect(() => {
-    localStorage.setItem('scrs_notifications', JSON.stringify(notifications));
-  }, [notifications]);
-
-  useEffect(() => {
-    localStorage.setItem('scrs_documents', JSON.stringify(documents));
-  }, [documents]);
-
-  useEffect(() => {
-    localStorage.setItem('scrs_courses', JSON.stringify(courses));
-  }, [courses]);
 
   useEffect(() => {
     localStorage.setItem('scrs_activities', JSON.stringify(activities));
@@ -190,18 +220,10 @@ export function AppProvider({ children }) {
 
   const register = useCallback(async (userData) => {
     try {
-      // Map frontend fields to backend fields
-      const payload = {
-        name: `${userData.firstName} ${userData.lastName}`.trim(),
-        email: userData.email,
-        password: userData.password,
-        department_id: userData.department_id || 'default-uuid-placeholder', 
-        semester: parseInt(userData.semester) || 1
-      };
-
+      // Pass the full userData to the backend, which now handles name construction and roles
       await apiFetch('/auth/register', {
         method: 'POST',
-        body: payload
+        body: userData
       });
       
       // Automatically log in after registration
@@ -215,6 +237,10 @@ export function AppProvider({ children }) {
     setUser(null);
     setToken(null);
     setIsAuthenticated(false);
+    setTasks([]);
+    setNotifications([]);
+    setDocuments([]);
+    setActivities([]);
   }, []);
 
   // User Actions
@@ -287,7 +313,7 @@ export function AppProvider({ children }) {
     } catch (err) {
       throw new Error(err.message || 'Network error');
     }
-  }, [token, courses, addActivity]); // addActivity is now defined above — no TDZ
+  }, [token, courses, addActivity]);
 
   // Grade Actions
   const getMyGrades = useCallback(async () => {
@@ -340,35 +366,91 @@ export function AppProvider({ children }) {
     }
   }, [token]);
 
-  // Task Actions
-  const addTask = useCallback((task) => {
-    const newTask = {
-      id: Date.now(),
-      completed: false,
-      priority: 'Medium',
-      ...task
-    };
-    setTasks(prev => [newTask, ...prev]);
-    addActivity({
-      user: 'You',
-      action: 'created a new task',
-      target: newTask.title,
-      type: 'task'
-    });
-  }, [addActivity]);
+  // =====================================
+  // Task Actions — NOW BACKED BY REAL API
+  // =====================================
+  const addTask = useCallback(async (task) => {
+    try {
+      const data = await apiFetch('/tasks', {
+        method: 'POST',
+        token,
+        body: {
+          title: task.title,
+          category: task.category || 'Other',
+          priority: task.priority || 'Medium',
+          due_date: task.due_date || null,
+        }
+      });
 
-  const updateTask = useCallback((id, updates) => {
+      if (data.success && data.data) {
+        const t = data.data;
+        setTasks(prev => [{
+          id: t.task_id,
+          title: t.title,
+          category: t.category,
+          priority: t.priority,
+          due_date: t.due_date,
+          completed: t.completed,
+          _backendId: t.task_id,
+        }, ...prev]);
+      }
+
+      addActivity({
+        user: 'You',
+        action: 'created a new task',
+        target: task.title,
+        type: 'task'
+      });
+      return data;
+    } catch (err) {
+      // Fallback to local if backend fails
+      const newTask = {
+        id: Date.now(),
+        completed: false,
+        priority: 'Medium',
+        ...task
+      };
+      setTasks(prev => [newTask, ...prev]);
+      throw err;
+    }
+  }, [token, addActivity]);
+
+  const updateTask = useCallback(async (id, updates) => {
+    // Optimistic update
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-  }, []);
+    try {
+      const backendId = tasks.find(t => t.id === id)?._backendId || id;
+      await apiFetch(`/tasks/${backendId}`, {
+        method: 'PUT',
+        token,
+        body: updates
+      });
+    } catch (err) {
+      console.error('Failed to update task on backend:', err);
+    }
+  }, [token, tasks]);
 
-  const deleteTask = useCallback((id) => {
+  const deleteTask = useCallback(async (id) => {
+    const taskToDelete = tasks.find(t => t.id === id);
     setTasks(prev => prev.filter(t => t.id !== id));
-  }, []);
+    try {
+      const backendId = taskToDelete?._backendId || id;
+      await apiFetch(`/tasks/${backendId}`, {
+        method: 'DELETE',
+        token
+      });
+    } catch (err) {
+      console.error('Failed to delete task on backend:', err);
+    }
+  }, [token, tasks]);
 
-  const toggleTask = useCallback((id) => {
+  const toggleTask = useCallback(async (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    const newState = !task.completed;
     setTasks(prev => prev.map(t => {
       if (t.id === id) {
-        const newState = !t.completed;
         if (newState) {
           addActivity({
             user: 'You',
@@ -381,42 +463,122 @@ export function AppProvider({ children }) {
       }
       return t;
     }));
-  }, [addActivity]);
 
-  // Notification Actions
-  const markNotificationRead = useCallback((id) => {
+    try {
+      const backendId = task._backendId || id;
+      await apiFetch(`/tasks/${backendId}`, {
+        method: 'PUT',
+        token,
+        body: { completed: newState }
+      });
+    } catch (err) {
+      console.error('Failed to toggle task on backend:', err);
+    }
+  }, [token, tasks, addActivity]);
+
+  // =============================================
+  // Notification Actions — NOW BACKED BY REAL API
+  // =============================================
+  const markNotificationRead = useCallback(async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  }, []);
+    try {
+      const backendId = notifications.find(n => n.id === id)?._backendId || id;
+      await apiFetch(`/notifications/${backendId}/read`, {
+        method: 'PUT',
+        token
+      });
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  }, [token, notifications]);
 
-  const markAllNotificationsRead = useCallback(() => {
+  const markAllNotificationsRead = useCallback(async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }, []);
+    try {
+      await apiFetch('/notifications/read-all', {
+        method: 'PUT',
+        token
+      });
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+  }, [token]);
 
-  const deleteNotification = useCallback((id) => {
+  const deleteNotification = useCallback(async (id) => {
+    const notifToDelete = notifications.find(n => n.id === id);
     setNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+    try {
+      const backendId = notifToDelete?._backendId || id;
+      await apiFetch(`/notifications/${backendId}`, {
+        method: 'DELETE',
+        token
+      });
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
+  }, [token, notifications]);
 
-  // Document Actions
-  const uploadDocument = useCallback((doc) => {
-    const newDoc = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      ...doc
-    };
-    setDocuments(prev => [newDoc, ...prev]);
-    addActivity({
-      user: 'You',
-      action: 'uploaded a document',
-      target: newDoc.name,
-      type: 'upload'
-    });
-  }, [addActivity]);
+  // ==========================================
+  // Document Actions — NOW BACKED BY REAL API
+  // ==========================================
+  const uploadDocument = useCallback(async (doc) => {
+    try {
+      const data = await apiFetch('/documents', {
+        method: 'POST',
+        token,
+        body: {
+          name: doc.name,
+          type: doc.type || 'Other',
+          size: doc.size || '0 KB',
+          url: doc.url || '',
+        }
+      });
 
-  const deleteDocument = useCallback((id) => {
+      if (data.success && data.data) {
+        const d = data.data;
+        setDocuments(prev => [{
+          id: d.document_id,
+          name: d.name,
+          type: d.type,
+          size: d.size,
+          url: d.url,
+          date: new Date(d.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          _backendId: d.document_id,
+        }, ...prev]);
+      }
+
+      addActivity({
+        user: 'You',
+        action: 'uploaded a document',
+        target: doc.name,
+        type: 'upload'
+      });
+      return data;
+    } catch (err) {
+      // Fallback to local
+      const newDoc = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        ...doc
+      };
+      setDocuments(prev => [newDoc, ...prev]);
+      throw err;
+    }
+  }, [token, addActivity]);
+
+  const deleteDocument = useCallback(async (id) => {
+    const docToDelete = documents.find(d => d.id === id);
     setDocuments(prev => prev.filter(d => d.id !== id));
-  }, []);
-
-  // (addActivity moved above to fix TDZ — was here)
+    try {
+      const backendId = docToDelete?._backendId || id;
+      await apiFetch(`/documents/${backendId}`, {
+        method: 'DELETE',
+        token
+      });
+    } catch (err) {
+      console.error('Failed to delete document:', err);
+    }
+  }, [token, documents]);
 
   // Search Logic
   useEffect(() => {

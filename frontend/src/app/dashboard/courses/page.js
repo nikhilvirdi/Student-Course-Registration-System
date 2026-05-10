@@ -47,7 +47,13 @@ export default function CoursesPage() {
         title="My Courses"
         description="Manage your academic schedule and course progress."
         action={
-          <button className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all active:scale-95 shadow-sm">
+          <button 
+            onClick={() => {
+              setActiveTab('All Courses');
+              setSearchQuery('');
+            }}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all active:scale-95 shadow-sm"
+          >
             Browse Catalog
           </button>
         }

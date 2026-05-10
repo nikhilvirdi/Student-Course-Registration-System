@@ -15,7 +15,11 @@ app.use(express.json());
 
 // Basic Route
 app.get('/', (req, res) => {
-  res.json({ message: "SCRS Backend API is running..." });
+  res.status(200).json({
+    success: true,
+    message: "SCRS Backend API is running...",
+    data: {}
+  });
 });
 
 // Route Registration
@@ -25,6 +29,11 @@ app.use('/api/students', require('./modules/students/students.routes'));
 app.use('/api/enrollments', require('./modules/enrollments/enrollments.routes'));
 app.use('/api/departments', require('./modules/departments/departments.routes'));
 app.use('/api/faculty', require('./modules/faculty/faculty.routes'));
+app.use('/api/grades', require('./modules/grades/grades.routes'));
+app.use('/api/admin', require('./modules/admin/admin.routes'));
+app.use('/api/tasks', require('./modules/tasks/tasks.routes'));
+app.use('/api/notifications', require('./modules/notifications/notifications.routes'));
+app.use('/api/documents', require('./modules/documents/documents.routes'));
 
 // Global Error Handler (Must be last)
 app.use(errorHandler);

@@ -2,11 +2,18 @@ const authService = require('./auth.service');
 
 const register = async (req, res, next) => {
   try {
-    const student = await authService.registerStudent(req.body);
+    const user = await authService.registerUser(req.body);
+    const isStudent = !!user.student_id;
+    
     res.status(201).json({
       success: true,
-      message: 'Student registered successfully',
-      data: { id: student.student_id, name: student.name, email: student.email }
+      message: `${isStudent ? 'Student' : 'Admin'} registered successfully`,
+      data: { 
+        id: user.student_id || user.admin_id, 
+        name: user.name, 
+        email: user.email,
+        role: isStudent ? 'STUDENT' : 'ADMIN'
+      }
     });
   } catch (error) {
     next(error);
@@ -39,8 +46,42 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const updateProfile = async (req, res, next) => {
+  try {
+    // Only students can update their profile via this route
+    if (req.user.role !== 'STUDENT') {
+      return res.status(403).json({ success: false, message: 'Forbidden: only students can use this endpoint' });
+    }
+    const updated = await authService.updateProfile(req.user.id, req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updated
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updatePassword = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'STUDENT') {
+      return res.status(403).json({ success: false, message: 'Forbidden: only students can change passwords via this endpoint' });
+    }
+    await authService.updatePassword(req.user.id, req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
-  getMe
+  getMe,
+  updateProfile,
+  updatePassword,
 };

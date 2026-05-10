@@ -58,7 +58,7 @@ export default function StudentGradesPage() {
           <div>
             <h2 className="text-sm font-semibold text-sidebar-fg uppercase tracking-wider mb-1">Cumulative GPA</h2>
             <div className="text-4xl font-bold text-foreground">
-              {gpaData.gpa} <span className="text-lg text-sidebar-fg font-medium">/ 4.0</span>
+              {gpaData.gpa} <span className="text-lg text-sidebar-fg font-medium">/ 10.0</span>
             </div>
           </div>
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">

@@ -1,7 +1,8 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
-// Departments with stable explicit UUIDs so the frontend fallback always matches the DB
+// Departments
 const DEPARTMENTS = [
   { department_id: '10000001-0000-4000-a000-000000000001', department_name: 'Aerospace Engineering' },
   { department_id: '10000002-0000-4000-a000-000000000002', department_name: 'Architecture' },
@@ -29,7 +30,6 @@ const DEPARTMENTS = [
 
 async function main() {
   console.log('🌱 Seeding departments...');
-
   for (const dept of DEPARTMENTS) {
     await prisma.department.upsert({
       where: { department_id: dept.department_id },
@@ -38,7 +38,34 @@ async function main() {
     });
   }
 
-  console.log(`✅ Seeded ${DEPARTMENTS.length} departments successfully.`);
+  console.log('🌱 Seeding default admin...');
+  const adminPassword = await bcrypt.hash('adminpassword', 10);
+  await prisma.admin.upsert({
+    where: { email: 'admin@scrs.com' },
+    update: {},
+    create: {
+      name: 'System Admin',
+      email: 'admin@scrs.com',
+      password: adminPassword,
+    }
+  });
+
+  console.log('🌱 Seeding sample faculty...');
+  const faculty = [
+    { faculty_name: 'Dr. Alan Turing', email: 'turing@scrs.edu' },
+    { faculty_name: 'Dr. Grace Hopper', email: 'hopper@scrs.edu' },
+    { faculty_name: 'Dr. Ada Lovelace', email: 'lovelace@scrs.edu' },
+  ];
+
+  for (const f of faculty) {
+    await prisma.faculty.upsert({
+      where: { email: f.email },
+      update: {},
+      create: f
+    });
+  }
+
+  console.log('✅ Seeding completed successfully.');
 }
 
 main()

@@ -161,16 +161,16 @@ function GradeRow({ enrollment, onAssign, submitting }) {
       <td className="px-6 py-4 text-center">
         {isCompleted && grade ? (
           <div className="flex items-center justify-center gap-3">
-            <span className="font-medium text-foreground">{grade.marks}</span>
+            <span className="font-medium text-foreground">{grade.marks_obtained}</span>
             <span className={cn(
               "px-2 py-0.5 rounded text-xs font-bold",
-              grade.letter_grade === 'A' ? "bg-green-500/10 text-green-500" :
-              grade.letter_grade === 'B' ? "bg-blue-500/10 text-blue-500" :
-              grade.letter_grade === 'C' ? "bg-yellow-500/10 text-yellow-500" :
-              grade.letter_grade === 'D' ? "bg-orange-500/10 text-orange-500" :
+              grade.grade_letter === 'A' ? "bg-green-500/10 text-green-500" :
+              grade.grade_letter === 'B' ? "bg-blue-500/10 text-blue-500" :
+              grade.grade_letter === 'C' ? "bg-yellow-500/10 text-yellow-500" :
+              grade.grade_letter === 'D' ? "bg-orange-500/10 text-orange-500" :
               "bg-red-500/10 text-red-500"
             )}>
-              {grade.letter_grade}
+              {grade.grade_letter}
             </span>
           </div>
         ) : (

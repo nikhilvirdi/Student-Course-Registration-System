@@ -14,6 +14,22 @@ const getStudentEnrollments = async (studentId) => {
   });
 };
 
+const getAllEnrollments = async () => {
+  return await prisma.enrollment.findMany({
+    include: {
+      course: true,
+      student: {
+        select: {
+          student_id: true,
+          name: true,
+          email: true
+        }
+      },
+      grade: true
+    }
+  });
+};
+
 const registerForCourse = async (studentId, courseId) => {
   // Use Prisma Transaction to ensure atomicity
   return await prisma.$transaction(async (tx) => {
@@ -54,6 +70,18 @@ const registerForCourse = async (studentId, courseId) => {
 
     if (existingEnrollment) throw new Error('You are already registered for this course');
 
+    // 3b. Credit Limit Validation (MAX 24 credits per semester)
+    const MAX_CREDITS = 24;
+    const currentEnrollments = await tx.enrollment.findMany({
+      where: { student_id: studentId, status: { not: 'DROPPED' } },
+      include: { course: true }
+    });
+    
+    const currentCredits = currentEnrollments.reduce((sum, enr) => sum + enr.course.credits, 0);
+    if (currentCredits + course.credits > MAX_CREDITS) {
+      throw new Error(`Credit limit exceeded. Maximum allowed is ${MAX_CREDITS} credits.`);
+    }
+
     // 4. Create Enrollment
     const enrollment = await tx.enrollment.create({
       data: {
@@ -86,6 +114,10 @@ const dropCourse = async (studentId, courseId) => {
     });
 
     if (!enrollment) throw new Error('Enrollment not found');
+    
+    if (enrollment.status === 'COMPLETED') {
+      throw new Error('Cannot drop a completed course where a grade is already assigned.');
+    }
 
     // 2. Delete Enrollment
     await tx.enrollment.delete({
@@ -109,6 +141,7 @@ const dropCourse = async (studentId, courseId) => {
 
 module.exports = {
   getStudentEnrollments,
+  getAllEnrollments,
   registerForCourse,
   dropCourse
 };

@@ -20,6 +20,9 @@ model Student {
   department_id String
   department    Department   @relation(fields: [department_id], references: [department_id])
   enrollments   Enrollment[]
+  tasks         Task[]
+  notifications Notification[]
+  documents     Document[]
   created_at    DateTime     @default(now())
   updated_at    DateTime     @updatedAt
 }
@@ -63,7 +66,14 @@ model Course {
   department_id   String
   department      Department     @relation(fields: [department_id], references: [department_id])
   enrollments     Enrollment[]
-  
+
+  // Scheduling & Academic Fields
+  course_code     String?
+  schedule_days   String?
+  schedule_time   String?
+  room            String?
+  semester_label  String?
+
   // Prerequisite Relationships
   prerequisites   Prerequisite[] @relation("CourseToPrerequisite")
   required_for    Prerequisite[] @relation("PrerequisiteToCourse")
@@ -75,11 +85,27 @@ model Enrollment {
   student_id      String
   course_id       String
   enrollment_date DateTime @default(now())
+  status          String   @default("ACTIVE") // ACTIVE | COMPLETED | DROPPED
   
   student         Student  @relation(fields: [student_id], references: [student_id])
   course          Course   @relation(fields: [course_id], references: [course_id])
+  grade           Grade?
 
   @@unique([student_id, course_id]) // Constraint: Duplicate enrollment prevention
+}
+
+// 6b. Grades Table
+model Grade {
+  grade_id      String     @id @default(uuid())
+  enrollment_id String     @unique   // One grade per enrollment
+  enrollment    Enrollment @relation(fields: [enrollment_id], references: [enrollment_id])
+  
+  marks_obtained Float      // Raw marks (e.g., 85.5)
+  grade_letter   String     // e.g., "A+", "B", "F"
+  grade_points   Float      // e.g., 10.0, 8.0, 0.0 (for GPA calculation)
+  
+  graded_at     DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
 }
 
 // 7. Prerequisites Table (Self-referencing Junction)
@@ -92,4 +118,42 @@ model Prerequisite {
   prerequisite_course    Course @relation("PrerequisiteToCourse", fields: [prerequisite_course_id], references: [course_id])
 
   @@unique([course_id, prerequisite_course_id]) // Constraint: Unique prerequisite mapping
+}
+
+// 8. Tasks Table
+model Task {
+  task_id     String   @id @default(uuid())
+  title       String
+  category    String   @default("Other")
+  priority    String   @default("Medium")
+  due_date    String?
+  completed   Boolean  @default(false)
+  student_id  String
+  student     Student  @relation(fields: [student_id], references: [student_id])
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}
+
+// 9. Notifications Table
+model Notification {
+  notification_id String   @id @default(uuid())
+  title           String
+  message         String
+  type            String   @default("info") // info, success, warning, error
+  read            Boolean  @default(false)
+  student_id      String
+  student         Student  @relation(fields: [student_id], references: [student_id])
+  created_at      DateTime @default(now())
+}
+
+// 10. Documents Table
+model Document {
+  document_id String   @id @default(uuid())
+  name        String
+  type        String
+  size        String
+  url         String
+  student_id  String
+  student     Student  @relation(fields: [student_id], references: [student_id])
+  uploaded_at DateTime @default(now())
 }

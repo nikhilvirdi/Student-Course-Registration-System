@@ -12,6 +12,18 @@ const getMyEnrollments = async (req, res, next) => {
   }
 };
 
+const getAllEnrollments = async (req, res, next) => {
+  try {
+    const enrollments = await enrollmentsService.getAllEnrollments();
+    res.status(200).json({
+      success: true,
+      data: enrollments
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const register = async (req, res, next) => {
   try {
     const { course_id } = req.body;
@@ -41,6 +53,7 @@ const drop = async (req, res, next) => {
 
 module.exports = {
   getMyEnrollments,
+  getAllEnrollments,
   register,
   drop
 };

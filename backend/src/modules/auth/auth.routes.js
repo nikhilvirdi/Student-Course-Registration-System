@@ -9,5 +9,8 @@ router.post('/login', authController.login);
 
 // Protected Routes
 router.get('/me', authMiddleware, authController.getMe);
+router.patch('/profile', authMiddleware, authController.updateProfile);
+router.patch('/password', authMiddleware, authController.updatePassword);
 
 module.exports = router;
+

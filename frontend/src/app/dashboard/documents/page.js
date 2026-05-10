@@ -24,11 +24,19 @@ import PageHeader from '@/components/ui/PageHeader';
 import FilterTabs from '@/components/ui/FilterTabs';
 import SearchInput from '@/components/ui/SearchInput';
 
-const folders = [
-  { id: 1, name: 'CS301 Project', files: 12, size: '45 MB', modified: 'Yesterday' },
-  { id: 2, name: 'Transcripts', files: 4, size: '2.4 MB', modified: 'May 01, 2026' },
-  { id: 3, name: 'Study Materials', files: 28, size: '156 MB', modified: 'Apr 28, 2026' },
-];
+const getDocCategories = (docs) => {
+  const cats = {};
+  docs.forEach(d => {
+    const cat = d.type || 'Other';
+    if (!cats[cat]) cats[cat] = { count: 0, totalSize: 0 };
+    cats[cat].count++;
+  });
+  return Object.entries(cats).map(([name, data], i) => ({
+    id: i + 1,
+    name: `${name} Files`,
+    files: data.count,
+  }));
+};
 
 export default function DocumentsPage() {
   const { documents, uploadDocument, deleteDocument } = useApp();
@@ -49,18 +57,29 @@ export default function DocumentsPage() {
     return true;
   });
 
-  const handleUpload = () => {
-    // Simulate file selection
-    const mockFile = {
-      name: 'New_Submission.pdf',
-      type: 'pdf',
-      size: '1.2 MB',
-      category: 'General'
-    };
-    
-    uploadDocument(mockFile);
-    setIsUploadModalOpen(false);
-    toast({ title: 'Document uploaded successfully', type: 'success' });
+  const [uploadForm, setUploadForm] = useState({ name: '', type: 'pdf' });
+
+  const folders = getDocCategories(documents);
+
+  const handleUpload = async () => {
+    if (!uploadForm.name.trim()) {
+      toast({ title: 'Error', description: 'File name is required', type: 'error' });
+      return;
+    }
+    try {
+      await uploadDocument({
+        name: uploadForm.name,
+        type: uploadForm.type,
+        size: 'N/A',
+        url: '',
+      });
+      setIsUploadModalOpen(false);
+      setUploadForm({ name: '', type: 'pdf' });
+      toast({ title: 'Document uploaded successfully', type: 'success' });
+    } catch (err) {
+      toast({ title: 'Warning', description: 'Saved locally (backend sync failed)', type: 'warning' });
+      setIsUploadModalOpen(false);
+    }
   };
 
   const getFileIcon = (type) => {
@@ -240,15 +259,40 @@ export default function DocumentsPage() {
           </div>
         }
       >
-        <div 
-          onClick={handleUpload}
-          className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-card-border rounded-2xl bg-sidebar-accent/20 hover:bg-sidebar-accent/40 hover:border-primary/50 transition-all cursor-pointer group"
-        >
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <UploadCloud className="w-8 h-8 text-primary" />
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-sidebar-fg uppercase tracking-wider mb-1.5">File Name</label>
+            <input
+              type="text"
+              placeholder="e.g., DBMS_Assignment_3.pdf"
+              value={uploadForm.name}
+              onChange={(e) => setUploadForm({...uploadForm, name: e.target.value})}
+              className="w-full px-4 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary transition-all"
+              autoFocus
+            />
           </div>
-          <p className="text-sm font-bold text-foreground">Click to upload or drag and drop</p>
-          <p className="text-[11px] text-sidebar-fg mt-2 uppercase font-bold tracking-widest">SVG, PNG, JPG or PDF (max. 10MB)</p>
+          <div>
+            <label className="block text-xs font-medium text-sidebar-fg uppercase tracking-wider mb-1.5">File Type</label>
+            <select
+              value={uploadForm.type}
+              onChange={(e) => setUploadForm({...uploadForm, type: e.target.value})}
+              className="w-full px-4 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary transition-all appearance-none"
+            >
+              {['pdf', 'doc', 'xlsx', 'image', 'code', 'sql', 'Other'].map(t => (
+                <option key={t} value={t}>{t.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+          <div 
+            onClick={handleUpload}
+            className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-card-border rounded-2xl bg-sidebar-accent/20 hover:bg-sidebar-accent/40 hover:border-primary/50 transition-all cursor-pointer group"
+          >
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+              <UploadCloud className="w-6 h-6 text-primary" />
+            </div>
+            <p className="text-sm font-bold text-foreground">Click to upload</p>
+            <p className="text-[11px] text-sidebar-fg mt-1 uppercase font-bold tracking-widest">PDF, DOC, XLSX, IMG (max. 10MB)</p>
+          </div>
         </div>
       </Modal>
     </div>

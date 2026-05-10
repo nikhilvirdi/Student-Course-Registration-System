@@ -50,6 +50,7 @@ export default function RegisterPage() {
     confirmPassword: '',
     department_id: FALLBACK_DEPARTMENTS[0].department_id,
     semester: '1',
+    role: 'STUDENT',
   });
 
   useEffect(() => {
@@ -129,6 +130,36 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {/* Role Selection */}
+              <div className="flex p-1 bg-sidebar-accent border border-card-border rounded-xl mb-6">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, role: 'STUDENT' }))}
+                  className={cn(
+                    "flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2",
+                    formData.role === 'STUDENT' 
+                      ? "bg-primary text-primary-foreground shadow-md scale-[1.02]" 
+                      : "text-sidebar-fg hover:bg-sidebar-fg/5"
+                  )}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, role: 'ADMIN' }))}
+                  className={cn(
+                    "flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2",
+                    formData.role === 'ADMIN' 
+                      ? "bg-primary text-primary-foreground shadow-md scale-[1.02]" 
+                      : "text-sidebar-fg hover:bg-sidebar-fg/5"
+                  )}
+                >
+                  <Lock className="w-4 h-4" />
+                  Admin
+                </button>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground ml-1" htmlFor="firstName">
@@ -170,10 +201,10 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={cn("grid grid-cols-1 gap-4", formData.role === 'STUDENT' ? "sm:grid-cols-2" : "sm:grid-cols-1")}>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-foreground ml-1" htmlFor="email">
-                    University Email
+                    {formData.role === 'STUDENT' ? 'University Email' : 'Admin Email'}
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-sidebar-fg group-focus-within:text-primary transition-colors">
@@ -182,7 +213,7 @@ export default function RegisterPage() {
                     <input
                       id="email"
                       type="email"
-                      placeholder="alex.doe@university.edu"
+                      placeholder={formData.role === 'STUDENT' ? "alex.doe@university.edu" : "admin@scrs.com"}
                       className="w-full bg-sidebar-accent border-card-border border rounded-xl py-3 pl-12 pr-4 text-foreground placeholder:text-sidebar-fg/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all group-hover:border-sidebar-fg/30"
                       value={formData.email}
                       onChange={handleChange}
@@ -191,52 +222,56 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground ml-1" htmlFor="semester">
-                    Semester
+                {formData.role === 'STUDENT' && (
+                  <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+                    <label className="text-sm font-semibold text-foreground ml-1" htmlFor="semester">
+                      Semester
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-sidebar-fg group-focus-within:text-primary transition-colors">
+                        <Hash className="w-5 h-5" />
+                      </div>
+                      <select
+                        id="semester"
+                        className="w-full bg-sidebar-accent border-card-border border rounded-xl py-3 pl-12 pr-4 text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all group-hover:border-sidebar-fg/30"
+                        value={formData.semester}
+                        onChange={handleChange}
+                        required
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                          <option key={sem} value={sem}>Semester {sem}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {formData.role === 'STUDENT' && (
+                <div className="space-y-2 animate-in fade-in zoom-in-95 duration-200">
+                  <label className="text-sm font-semibold text-foreground ml-1" htmlFor="department_id">
+                    Department
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-sidebar-fg group-focus-within:text-primary transition-colors">
-                      <Hash className="w-5 h-5" />
+                      <Building2 className="w-5 h-5" />
                     </div>
                     <select
-                      id="semester"
+                      id="department_id"
                       className="w-full bg-sidebar-accent border-card-border border rounded-xl py-3 pl-12 pr-4 text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all group-hover:border-sidebar-fg/30"
-                      value={formData.semester}
+                      value={formData.department_id}
                       onChange={handleChange}
                       required
                     >
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
-                        <option key={sem} value={sem}>Semester {sem}</option>
+                      {departments.map(dept => (
+                        <option key={dept.department_id} value={dept.department_id}>
+                          {dept.department_name}
+                        </option>
                       ))}
                     </select>
                   </div>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground ml-1" htmlFor="department_id">
-                  Department
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-sidebar-fg group-focus-within:text-primary transition-colors">
-                    <Building2 className="w-5 h-5" />
-                  </div>
-                  <select
-                    id="department_id"
-                    className="w-full bg-sidebar-accent border-card-border border rounded-xl py-3 pl-12 pr-4 text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all group-hover:border-sidebar-fg/30"
-                    value={formData.department_id}
-                    onChange={handleChange}
-                    required
-                  >
-                    {departments.map(dept => (
-                      <option key={dept.department_id} value={dept.department_id}>
-                        {dept.department_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -282,7 +317,7 @@ export default function RegisterPage() {
               <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-xl border border-primary/10">
                 <GraduationCap className="w-6 h-6 text-primary flex-shrink-0" />
                 <p className="text-xs text-sidebar-fg">
-                  By registering, you agree to our <span className="font-bold text-foreground hover:underline cursor-pointer">Terms of Service</span> and acknowledge you are an active student.
+                  By registering, you agree to our <span className="font-bold text-foreground hover:underline cursor-pointer">Terms of Service</span> and acknowledge you are an authorized {formData.role === 'STUDENT' ? 'student' : 'administrator'}.
                 </p>
               </div>
 

@@ -4,7 +4,10 @@ const enrollmentsController = require('./enrollments.controller');
 const authMiddleware = require('../../middleware/auth.middleware');
 const roleMiddleware = require('../../middleware/role.middleware');
 
-// Protect all enrollment routes - only accessible by STUDENTS
+// Admin routes
+router.get('/all', authMiddleware, roleMiddleware(['ADMIN']), enrollmentsController.getAllEnrollments);
+
+// Protect all following enrollment routes - only accessible by STUDENTS
 router.use(authMiddleware);
 router.use(roleMiddleware(['STUDENT']));
 

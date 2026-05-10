@@ -25,7 +25,7 @@ import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function TasksPage() {
   const { tasks, addTask, toggleTask, deleteTask, updateTask } = useApp();
-  const { toast } = useToast();
+  const { toast } = useToast(); 
   const [activeTab, setActiveTab] = useState('All Tasks');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -50,20 +50,30 @@ export default function TasksPage() {
     return true;
   });
 
-  const handleAddTask = (e) => {
+  const handleAddTask = async (e) => {
     e.preventDefault();
     if (!newTask.title.trim()) {
       toast({ title: 'Error', description: 'Task title is required', type: 'error' });
       return;
     }
-    addTask({
-      ...newTask,
-      status: 'To Do',
-      completed: false
-    });
-    setNewTask({ title: '', category: 'Assignment', priority: 'Medium', dueDate: '' });
-    setIsAddingTask(false);
-    toast({ title: 'Success', description: 'Task added successfully', type: 'success' });
+    try {
+      await addTask({
+        title: newTask.title,
+        category: newTask.category,
+        priority: newTask.priority,
+        due_date: newTask.dueDate || null,
+        dueDate: newTask.dueDate || null,
+        status: 'To Do',
+        completed: false
+      });
+      setNewTask({ title: '', category: 'Assignment', priority: 'Medium', dueDate: '' });
+      setIsAddingTask(false);
+      toast({ title: 'Success', description: 'Task added successfully', type: 'success' });
+    } catch (err) {
+      toast({ title: 'Warning', description: 'Task saved locally (backend sync failed)', type: 'warning' });
+      setNewTask({ title: '', category: 'Assignment', priority: 'Medium', dueDate: '' });
+      setIsAddingTask(false);
+    }
   };
 
 

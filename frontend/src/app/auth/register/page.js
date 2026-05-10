@@ -5,12 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, Mail, Lock, AlertCircle, ArrowRight, User, GraduationCap, Building2, Hash } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
+import { cn, apiFetch } from '@/lib/utils';
 
 // Hardcoded fallback — UUIDs match the backend seed file so registration works even if API is slow
 const FALLBACK_DEPARTMENTS = [
@@ -60,14 +55,10 @@ export default function RegisterPage() {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/departments');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            setDepartments(data);
-            setFormData(prev => ({ ...prev, department_id: data[0].department_id }));
-          }
-          // else: keep FALLBACK_DEPARTMENTS already in state
+        const result = await apiFetch('/departments');
+        if (result.success && result.data && result.data.length > 0) {
+          setDepartments(result.data);
+          setFormData(prev => ({ ...prev, department_id: result.data[0].department_id }));
         }
       } catch (err) {
         // API unreachable — fallback list already set, no action needed

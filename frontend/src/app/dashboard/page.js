@@ -1,15 +1,11 @@
 'use client';
 
 import { BookOpen, Users, Clock, AlertCircle, ArrowUpRight, ArrowDownRight, MoreHorizontal, Calendar, CheckCircle2 } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '@/lib/utils';
 
 import { useApp } from '@/context/AppContext';
 import Link from 'next/link';
+import { displayName } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { courses, tasks, activities, user } = useApp();
@@ -55,7 +51,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome back, {user.firstName}!</h1>
+          <h1 className="text-2xl font-bold text-foreground">Welcome back, {displayName(user)}!</h1>
           <p className="text-sidebar-fg text-sm mt-1">Here's what's happening with your studies today.</p>
         </div>
         <div className="flex items-center gap-2">

@@ -16,13 +16,12 @@ import {
   X
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { useToast } from '@/components/ui/Toast';
-
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '@/lib/utils';
+import PageHeader from '@/components/ui/PageHeader';
+import FilterTabs from '@/components/ui/FilterTabs';
+import SearchInput from '@/components/ui/SearchInput';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function TasksPage() {
   const { tasks, addTask, toggleTask, deleteTask, updateTask } = useApp();
@@ -32,7 +31,12 @@ export default function TasksPage() {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', category: 'Assignment', priority: 'Medium', dueDate: '' });
 
-  const tabs = ['All Tasks', 'To Do', 'In Progress', 'Completed'];
+  const tabs = [
+    { id: 'All Tasks', label: 'All Tasks' },
+    { id: 'To Do', label: 'To Do' },
+    { id: 'In Progress', label: 'In Progress' },
+    { id: 'Completed', label: 'Completed' }
+  ];
 
   const filteredTasks = tasks.filter(task => {
     // Tab filter
@@ -62,31 +66,25 @@ export default function TasksPage() {
     toast({ title: 'Success', description: 'Task added successfully', type: 'success' });
   };
 
-  const getPriorityColor = (priority) => {
-    switch(priority) {
-      case 'High': return 'text-red-500 bg-red-500/10 border-red-500/20';
-      case 'Medium': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-      case 'Low': return 'text-primary bg-primary/10 border-primary/20';
-      default: return 'text-sidebar-fg bg-sidebar-accent border-card-border';
-    }
-  };
+
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Tasks & Assignments</h1>
-          <p className="text-sm text-sidebar-fg mt-1">Keep track of your coursework and deadlines.</p>
-        </div>
-        <button 
-          onClick={() => setIsAddingTask(true)}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all flex items-center gap-2 active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          Add Task
-        </button>
-      </div>
+      <PageHeader 
+        icon={CheckCircle2}
+        title="Tasks & Assignments"
+        description="Keep track of your coursework and deadlines."
+        action={
+          <button 
+            onClick={() => setIsAddingTask(true)}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all flex items-center gap-2 active:scale-95 shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add Task
+          </button>
+        }
+      />
 
       {/* Add Task Form (Inline) */}
       {isAddingTask && (
@@ -166,34 +164,19 @@ export default function TasksPage() {
       <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">
         {/* Filters & Search */}
         <div className="p-5 border-b border-card-border flex flex-col sm:flex-row justify-between gap-4 bg-card/50">
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-            {tabs.map((tab) => (
-              <button 
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border",
-                  activeTab === tab 
-                    ? "bg-foreground text-background border-foreground shadow-sm" 
-                    : "bg-background text-sidebar-fg border-card-border hover:bg-sidebar-accent hover:text-foreground"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+          <FilterTabs 
+            tabs={tabs}
+            active={activeTab}
+            onChange={setActiveTab}
+          />
           
           <div className="flex items-center gap-3">
-            <div className="relative group">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-sidebar-fg group-focus-within:text-primary transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Search tasks..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full sm:w-64 transition-all"
-              />
-            </div>
+            <SearchInput 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="w-full sm:w-64"
+            />
           </div>
         </div>
 
@@ -245,12 +228,7 @@ export default function TasksPage() {
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold border",
-                      getPriorityColor(task.priority)
-                    )}>
-                      {task.priority}
-                    </span>
+                    <StatusBadge status={task.priority} />
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => {

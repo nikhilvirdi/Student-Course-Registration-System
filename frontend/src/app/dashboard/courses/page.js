@@ -3,13 +3,12 @@
 import { useState } from 'react';
 import { BookOpen, Clock, Users, MoreVertical, Calendar, CheckCircle, Search, Filter, Book, Award } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
-
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
+import PageHeader from '@/components/ui/PageHeader';
+import FilterTabs from '@/components/ui/FilterTabs';
+import SearchInput from '@/components/ui/SearchInput';
+import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function CoursesPage() {
   const { courses, enrollCourse } = useApp();
@@ -17,7 +16,12 @@ export default function CoursesPage() {
   const [activeTab, setActiveTab] = useState('All Courses');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const tabs = ['All Courses', 'Enrolled', 'Waitlisted', 'Past'];
+  const tabs = [
+    { id: 'All Courses', label: 'All Courses' },
+    { id: 'Enrolled', label: 'Enrolled' },
+    { id: 'Waitlisted', label: 'Waitlisted' },
+    { id: 'Past', label: 'Past' },
+  ];
 
   const filteredCourses = courses.filter(course => {
     // Tab filter
@@ -38,45 +42,31 @@ export default function CoursesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">My Courses</h1>
-          <p className="text-sm text-sidebar-fg mt-1">Manage your academic schedule and course progress.</p>
-        </div>
-        <button className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all active:scale-95 shadow-sm">
-          Browse Catalog
-        </button>
-      </div>
+      <PageHeader 
+        icon={BookOpen}
+        title="My Courses"
+        description="Manage your academic schedule and course progress."
+        action={
+          <button className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all active:scale-95 shadow-sm">
+            Browse Catalog
+          </button>
+        }
+      />
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-          {tabs.map((tab) => (
-            <button 
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border",
-                activeTab === tab 
-                  ? "bg-foreground text-background border-foreground shadow-md" 
-                  : "bg-card text-sidebar-fg border-card-border hover:bg-sidebar-accent hover:text-foreground"
-              )}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <FilterTabs 
+          tabs={tabs}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
         
         <div className="flex items-center gap-3">
-          <div className="relative group">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-sidebar-fg group-focus-within:text-primary transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Search courses..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-card border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full sm:w-64 transition-all"
-            />
-          </div>
+          <SearchInput 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search courses..."
+            className="w-full sm:w-64"
+          />
           <button className="p-2 bg-card border border-card-border rounded-lg text-sidebar-fg hover:text-foreground hover:bg-sidebar-accent transition-colors">
             <Filter className="w-4 h-4" />
           </button>
@@ -95,14 +85,7 @@ export default function CoursesPage() {
                 />
                 
                 <div className="flex justify-between items-start mb-3 relative z-10">
-                  <span className={cn(
-                    "px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-bold border",
-                    course.status === 'Enrolled' && "bg-primary/10 text-primary border-primary/20",
-                    course.status === 'Waitlisted' && "bg-amber-500/10 text-amber-600 border-amber-500/20",
-                    course.status === 'Past' && "bg-sidebar-accent text-sidebar-fg border-card-border"
-                  )}>
-                    {course.status}
-                  </span>
+                  <StatusBadge status={course.status} />
                   <button className="text-sidebar-fg hover:text-foreground transition-colors p-1 rounded-md hover:bg-sidebar-accent">
                     <MoreVertical className="w-4 h-4" />
                   </button>
@@ -131,10 +114,20 @@ export default function CoursesPage() {
                     <Users className="w-4 h-4 text-primary/70" />
                     <span>{course.students} Students</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sidebar-fg col-span-2">
-                    <Calendar className="w-4 h-4 text-primary/70" />
-                    <span className="truncate">Next: {course.nextClass}</span>
-                  </div>
+                  {course.schedule ? (
+                    <div className="flex items-start gap-2 text-sidebar-fg col-span-2">
+                      <Calendar className="w-4 h-4 text-primary/70 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="truncate">{course.schedule}</div>
+                        {course.room && <div className="text-sidebar-fg/70">{course.room}</div>}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sidebar-fg/50 col-span-2 italic">
+                      <Calendar className="w-4 h-4" />
+                      <span>Schedule not set</span>
+                    </div>
+                  )}
                 </div>
 
                 {course.status !== 'Waitlisted' && (

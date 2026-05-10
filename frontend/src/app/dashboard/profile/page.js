@@ -1,14 +1,12 @@
 'use client';
 
 import { User, Mail, Phone, MapPin, Edit3, Shield, BookOpen, Clock, Award, CheckCircle } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
+import { cn, displayName } from '@/lib/utils';
+import { useApp } from '@/context/AppContext';
 
 export default function ProfilePage() {
+  const { user } = useApp();
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -29,17 +27,17 @@ export default function ProfilePage() {
             <div className="h-24 bg-gradient-to-r from-primary/80 to-primary"></div>
             <div className="px-6 pb-6 relative">
               <div className="w-24 h-24 mx-auto rounded-full border-4 border-card bg-sidebar-accent flex items-center justify-center -mt-12 mb-4 relative z-10 overflow-hidden">
-                <span className="text-3xl font-bold text-sidebar-fg">AD</span>
-                {/* <img src="/placeholder-avatar.jpg" alt="Alex" className="w-full h-full object-cover" /> */}
+                <span className="text-3xl font-bold text-sidebar-fg">{displayName(user).substring(0, 2).toUpperCase()}</span>
+                {/* <img src="/placeholder-avatar.jpg" alt={displayName(user)} className="w-full h-full object-cover" /> */}
               </div>
-              <h2 className="text-xl font-bold text-foreground">Alex Doe</h2>
-              <p className="text-sm font-medium text-primary mt-1">B.S. Computer Science</p>
-              <p className="text-sm text-sidebar-fg mt-1">Class of 2027</p>
+              <h2 className="text-xl font-bold text-foreground">{displayName(user)}</h2>
+              <p className="text-sm font-medium text-primary mt-1">{user?.department?.department_name || 'B.S. Computer Science'}</p>
+              <p className="text-sm text-sidebar-fg mt-1">Semester {user?.semester || '1'}</p>
               
               <div className="mt-6 flex flex-col gap-3 text-sm text-left">
                 <div className="flex items-center gap-3 text-sidebar-fg">
                   <Mail className="w-4 h-4" />
-                  <span className="text-foreground">alex.doe@university.edu</span>
+                  <span className="text-foreground">{user?.email || 'alex.doe@university.edu'}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sidebar-fg">
                   <Phone className="w-4 h-4" />

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { INITIAL_COURSES, INITIAL_TASKS, INITIAL_NOTIFICATIONS, INITIAL_DOCUMENTS, INITIAL_ACTIVITY } from '@/lib/mockData';
+import { apiFetch } from '@/lib/utils';
 
 const AppContext = createContext();
 
@@ -12,11 +12,11 @@ export function AppProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [courses, setCourses] = useState(INITIAL_COURSES);
-  const [tasks, setTasks] = useState(INITIAL_TASKS);
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
-  const [documents, setDocuments] = useState(INITIAL_DOCUMENTS);
-  const [activities, setActivities] = useState(INITIAL_ACTIVITY);
+  const [courses, setCourses] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({
     courses: [],
@@ -50,17 +50,13 @@ export function AppProvider({ children }) {
     // Fetch real courses from backend
     const fetchCourses = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/courses');
-        const data = await res.json();
+        const data = await apiFetch('/courses');
         if (data.success && data.data) {
           let enrolledCourseIds = new Set();
           
           if (savedToken) {
             try {
-              const enrolRes = await fetch('http://localhost:5000/api/enrollments/my', {
-                headers: { 'Authorization': `Bearer ${savedToken}` }
-              });
-              const enrolData = await enrolRes.json();
+              const enrolData = await apiFetch('/enrollments/my', { token: savedToken });
               if (enrolData.success && enrolData.data) {
                 enrolData.data.forEach(e => enrolledCourseIds.add(e.course_id));
               }
@@ -72,19 +68,26 @@ export function AppProvider({ children }) {
           const colors = ['#00D1FF', '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444'];
           const mappedCourses = data.data.map((c, index) => ({
             id: c.course_id,
-            code: c.course_id.substring(0, 8).toUpperCase(), // fallback code
+            code: c.course_code || c.course_id.substring(0, 8).toUpperCase(),
             name: c.course_name,
             instructor: c.faculty?.faculty_name || 'TBA',
-            semester: 'Current', // placeholder
+            semester: c.semester_label || 'Current Semester',
             progress: 0,
             color: colors[index % colors.length],
-            schedule: 'TBA',
-            room: 'TBA',
+            schedule: c.schedule_days && c.schedule_time
+              ? `${c.schedule_days} ${c.schedule_time}`
+              : null,
+            schedule_days: c.schedule_days || null,
+            schedule_time: c.schedule_time || null,
+            room: c.room || null,
+            semester_label: c.semester_label || null,
             status: enrolledCourseIds.has(c.course_id) ? 'Enrolled' : 'Available',
             students: c.max_seats - c.available_seats,
             credits: c.credits,
             tags: [c.department?.department_name || 'General'],
-            nextClass: 'TBA',
+            nextClass: c.schedule_days && c.schedule_time
+              ? `${c.schedule_days.split(',')[0].trim()} ${c.schedule_time.split('-')[0].trim()}`
+              : null,
             materials: [],
             assignments: [],
             available_seats: c.available_seats,
@@ -93,14 +96,11 @@ export function AppProvider({ children }) {
           }));
           setCourses(mappedCourses);
         } else {
-          // fallback to initial mock courses if api fails or returns empty
-          const savedCourses = localStorage.getItem('scrs_courses');
-          if (savedCourses) setCourses(JSON.parse(savedCourses));
+          setCourses([]);
         }
       } catch (err) {
-        console.error("Failed to fetch courses, falling back to local storage:", err);
-        const savedCourses = localStorage.getItem('scrs_courses');
-        if (savedCourses) setCourses(JSON.parse(savedCourses));
+        console.error("Failed to fetch courses:", err);
+        setCourses([]);
       } finally {
         setLoading(false);
       }
@@ -143,27 +143,35 @@ export function AppProvider({ children }) {
 
   // --- Actions ---
 
+  // Activity Actions (must be defined first — used by updateProfile, updatePassword, enrollCourse, etc.)
+  const addActivity = useCallback((activity) => {
+    const newActivity = {
+      id: Date.now(),
+      time: 'Just now',
+      ...activity
+    };
+    setActivities(prev => [newActivity, ...prev]);
+  }, []);
+
   // Auth Actions
   const login = useCallback(async (email, password) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      const data = await apiFetch('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: { email, password }
       });
       
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
       const { user: userData, token: jwtToken } = data.data;
       
       // Ensure we merge some mock preferences if the backend doesn't provide them yet
+      const [firstName, ...lastNameParts] = userData.name ? userData.name.split(' ') : ['User', ''];
+      const lastName = lastNameParts.join(' ');
+      
       const fullUser = {
         ...userData,
-        avatar: userData.name.substring(0, 2).toUpperCase(),
+        firstName,
+        lastName,
+        avatar: userData.name ? userData.name.substring(0, 2).toUpperCase() : 'U',
         preferences: {
           language: 'English (US)',
           notifications: { email: true, push: true, updates: true },
@@ -191,18 +199,11 @@ export function AppProvider({ children }) {
         semester: parseInt(userData.semester) || 1
       };
 
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      await apiFetch('/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: payload
       });
       
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-
       // Automatically log in after registration
       return await login(userData.email, userData.password);
     } catch (err) {
@@ -217,9 +218,46 @@ export function AppProvider({ children }) {
   }, []);
 
   // User Actions
-  const updateUser = useCallback((updates) => {
-    setUser(prev => prev ? ({ ...prev, ...updates }) : null);
-  }, []);
+  const updateProfile = useCallback(async (updates) => {
+    try {
+      const data = await apiFetch('/auth/profile', {
+        method: 'PATCH',
+        token,
+        body: updates
+      });
+      
+      setUser(prev => prev ? ({ ...prev, ...data.data }) : null);
+      addActivity({
+        user: 'You',
+        action: 'updated your profile',
+        target: 'Settings',
+        type: 'system'
+      });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Network error');
+    }
+  }, [token, addActivity]);
+
+  const updatePassword = useCallback(async (currentPassword, newPassword) => {
+    try {
+      const data = await apiFetch('/auth/password', {
+        method: 'PATCH',
+        token,
+        body: { currentPassword, newPassword }
+      });
+      
+      addActivity({
+        user: 'You',
+        action: 'changed your password',
+        target: 'Security',
+        type: 'security'
+      });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Network error');
+    }
+  }, [token, addActivity]);
 
   const updatePreferences = useCallback((updates) => {
     setUser(prev => prev ? ({
@@ -228,29 +266,14 @@ export function AppProvider({ children }) {
     }) : null);
   }, []);
 
-  // Activity Actions (must be defined first — used by enrollCourse, addTask, toggleTask, uploadDocument)
-  const addActivity = useCallback((activity) => {
-    const newActivity = {
-      id: Date.now(),
-      time: 'Just now',
-      ...activity
-    };
-    setActivities(prev => [newActivity, ...prev]);
-  }, []);
-
   // Course Actions
   const enrollCourse = useCallback(async (courseId) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/enrollments/register`, {
+      const data = await apiFetch('/enrollments/register', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ course_id: courseId })
+        token,
+        body: { course_id: courseId }
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to enroll');
       
       setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: 'Enrolled' } : c));
       
@@ -265,6 +288,57 @@ export function AppProvider({ children }) {
       throw new Error(err.message || 'Network error');
     }
   }, [token, courses, addActivity]); // addActivity is now defined above — no TDZ
+
+  // Grade Actions
+  const getMyGrades = useCallback(async () => {
+    try {
+      const data = await apiFetch('/grades/my', { token });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Network error');
+    }
+  }, [token]);
+
+  const getMyGPA = useCallback(async () => {
+    try {
+      const data = await apiFetch('/grades/gpa', { token });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Network error');
+    }
+  }, [token]);
+
+  const assignGrade = useCallback(async (enrollment_id, marks) => {
+    try {
+      const data = await apiFetch('/grades', {
+        method: 'POST',
+        token,
+        body: { enrollment_id, marks }
+      });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Network error');
+    }
+  }, [token]);
+  
+  const getStudentGrades = useCallback(async (student_id) => {
+    try {
+      const data = await apiFetch(`/grades/student/${student_id}`, { token });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Network error');
+    }
+  }, [token]);
+
+  // Enrollment Admin Actions
+  const getAllEnrollments = useCallback(async () => {
+    try {
+      const data = await apiFetch('/enrollments/all', { token });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Network error');
+    }
+  }, [token]);
 
   // Task Actions
   const addTask = useCallback((task) => {
@@ -375,7 +449,8 @@ export function AppProvider({ children }) {
     login,
     register,
     logout,
-    updateUser,
+    updateProfile,
+    updatePassword,
     updatePreferences,
     enrollCourse,
     addTask,
@@ -388,6 +463,11 @@ export function AppProvider({ children }) {
     uploadDocument,
     deleteDocument,
     addActivity,
+    getMyGrades,
+    getMyGPA,
+    assignGrade,
+    getStudentGrades,
+    getAllEnrollments,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

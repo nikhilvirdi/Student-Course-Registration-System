@@ -17,14 +17,12 @@ import {
   Code
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { toast } from '@/components/ui/Toast';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
 import Modal from '@/components/ui/Modal';
-
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
+import PageHeader from '@/components/ui/PageHeader';
+import FilterTabs from '@/components/ui/FilterTabs';
+import SearchInput from '@/components/ui/SearchInput';
 
 const folders = [
   { id: 1, name: 'CS301 Project', files: 12, size: '45 MB', modified: 'Yesterday' },
@@ -34,11 +32,17 @@ const folders = [
 
 export default function DocumentsPage() {
   const { documents, uploadDocument, deleteDocument } = useApp();
+  const { toast } = useToast();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('My Files');
 
-  const tabs = ['Recent', 'My Files', 'Shared', 'Archived'];
+  const tabs = [
+    { id: 'Recent', label: 'Recent' },
+    { id: 'My Files', label: 'My Files' },
+    { id: 'Shared', label: 'Shared' },
+    { id: 'Archived', label: 'Archived' },
+  ];
 
   const filteredDocuments = documents.filter(doc => {
     if (searchQuery && !doc.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -56,7 +60,7 @@ export default function DocumentsPage() {
     
     uploadDocument(mockFile);
     setIsUploadModalOpen(false);
-    toast.success('Document uploaded successfully');
+    toast({ title: 'Document uploaded successfully', type: 'success' });
   };
 
   const getFileIcon = (type) => {
@@ -77,49 +81,35 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Documents</h1>
-          <p className="text-sm text-sidebar-fg mt-1">Manage your academic files and submissions.</p>
-        </div>
-        <button 
-          onClick={() => setIsUploadModalOpen(true)}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all flex items-center gap-2 active:scale-95 shadow-sm"
-        >
-          <UploadCloud className="w-4 h-4" />
-          Upload File
-        </button>
-      </div>
+      <PageHeader 
+        icon={File}
+        title="Documents"
+        description="Manage your academic files and submissions."
+        action={
+          <button 
+            onClick={() => setIsUploadModalOpen(true)}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all flex items-center gap-2 active:scale-95 shadow-sm"
+          >
+            <UploadCloud className="w-4 h-4" />
+            Upload File
+          </button>
+        }
+      />
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-          {tabs.map((tab) => (
-            <button 
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border",
-                activeTab === tab 
-                  ? "bg-foreground text-background border-foreground shadow-md" 
-                  : "bg-card text-sidebar-fg border-card-border hover:bg-sidebar-accent hover:text-foreground"
-              )}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <FilterTabs 
+          tabs={tabs}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
         
         <div className="flex items-center gap-3">
-          <div className="relative group">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-sidebar-fg group-focus-within:text-primary transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Search files..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-card border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full sm:w-64 transition-all"
-            />
-          </div>
+          <SearchInput 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search files..."
+            className="w-full sm:w-64"
+          />
           <button className="p-2 bg-card border border-card-border rounded-lg text-sidebar-fg hover:text-foreground hover:bg-sidebar-accent transition-colors">
             <Filter className="w-4 h-4" />
           </button>
@@ -198,7 +188,7 @@ export default function DocumentsPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteDocument(doc.id);
-                              toast.success('File deleted');
+                              toast({ title: 'File deleted', type: 'success' });
                             }}
                             className="p-2 text-sidebar-fg hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" 
                             title="Delete"

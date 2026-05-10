@@ -1,27 +1,34 @@
 'use client';
 
-import { Bell, Shield, Key, Eye, Moon, Monitor, Smartphone, Globe, Save, CheckCircle2 } from 'lucide-react';
+import { Bell, Shield, Key, Eye, Moon, Monitor, Smartphone, Globe, Save, CheckCircle2, Settings } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { user, updateUser, updatePreferences } = useApp();
+  const { user, updateProfile, updatePassword, updatePreferences } = useApp();
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState('account');
   
   // Local form state
   const [formData, setFormData] = useState({
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    language: user.preferences.language
+    firstName: user?.firstName || (user?.name ? user.name.split(' ')[0] : ''),
+    lastName: user?.lastName || (user?.name ? user.name.split(' ').slice(1).join(' ') : ''),
+    email: user?.email || '',
+    language: user?.preferences?.language || 'English (US)'
   });
 
-  const [notifData, setNotifData] = useState(user.preferences.notifications);
+  const [passData, setPassData] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+
+  const [notifData, setNotifData] = useState(user?.preferences?.notifications || { email: true, push: true, updates: true });
 
   useEffect(() => {
     setMounted(true);
@@ -29,27 +36,52 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setFormData({
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      language: user.preferences.language
+      firstName: user?.firstName || (user?.name ? user.name.split(' ')[0] : ''),
+      lastName: user?.lastName || (user?.name ? user.name.split(' ').slice(1).join(' ') : ''),
+      email: user?.email || '',
+      language: user?.preferences?.language || 'English (US)'
     });
-    setNotifData(user.preferences.notifications);
+    setNotifData(user?.preferences?.notifications || { email: true, push: true, updates: true });
   }, [user]);
 
-  const handleSaveAccount = () => {
-    updateUser({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-    });
-    updatePreferences({ language: formData.language });
-    
-    toast({
-      title: "Settings Saved",
-      description: "Your account information has been updated successfully.",
-      type: "success"
-    });
+  const handleSaveAccount = async () => {
+    try {
+      await updateProfile({
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+      });
+      updatePreferences({ language: formData.language });
+      
+      toast({
+        title: "Settings Saved",
+        description: "Your account information has been updated successfully.",
+        type: "success"
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.message,
+        type: "error"
+      });
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!passData.current || !passData.new || !passData.confirm) {
+      toast({ title: "Error", description: "All password fields are required", type: "error" });
+      return;
+    }
+    if (passData.new !== passData.confirm) {
+      toast({ title: "Error", description: "New passwords do not match", type: "error" });
+      return;
+    }
+    try {
+      await updatePassword(passData.current, passData.new);
+      toast({ title: "Password Updated", description: "Your password has been changed successfully.", type: "success" });
+      setPassData({ current: '', new: '', confirm: '' });
+    } catch (err) {
+      toast({ title: "Error", description: err.message, type: "error" });
+    }
   };
 
   const handleSaveNotifications = () => {
@@ -65,10 +97,11 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-sm text-sidebar-fg mt-1">Manage your account preferences and application settings.</p>
-      </div>
+      <PageHeader 
+        icon={Settings}
+        title="Settings"
+        description="Manage your account preferences and application settings."
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Settings Navigation */}
@@ -244,22 +277,40 @@ export default function SettingsPage() {
                 <div className="p-6 space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Current Password</label>
-                    <input type="password" placeholder="••••••••" className="w-full px-3 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" />
+                    <input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      value={passData.current}
+                      onChange={e => setPassData({...passData, current: e.target.value})}
+                      className="w-full px-3 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
+                    />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">New Password</label>
-                      <input type="password" placeholder="••••••••" className="w-full px-3 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" />
+                      <input 
+                        type="password" 
+                        placeholder="••••••••" 
+                        value={passData.new}
+                        onChange={e => setPassData({...passData, new: e.target.value})}
+                        className="w-full px-3 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
+                      />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-foreground">Confirm Password</label>
-                      <input type="password" placeholder="••••••••" className="w-full px-3 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" />
+                      <input 
+                        type="password" 
+                        placeholder="••••••••" 
+                        value={passData.confirm}
+                        onChange={e => setPassData({...passData, confirm: e.target.value})}
+                        className="w-full px-3 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all" 
+                      />
                     </div>
                   </div>
                 </div>
                 <div className="p-6 border-t border-card-border bg-sidebar-accent/30 flex justify-end">
                   <button 
-                    onClick={() => toast({ title: "Password Updated", description: "Your password has been changed successfully.", type: "success" })}
+                    onClick={handleUpdatePassword}
                     className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-all flex items-center gap-2 active:scale-95"
                   >
                     <Key className="w-4 h-4" />

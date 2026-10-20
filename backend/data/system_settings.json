@@ -1,0 +1,20 @@
+{
+  "academic": {
+    "term": "Spring 2026",
+    "registrationOpen": true,
+    "defaultCourseSeats": 50,
+    "maxCreditsPerStudent": 24,
+    "minPassingMarks": 40
+  },
+  "notifications": {
+    "emailNewEnrollments": true,
+    "alertLowSeats": true,
+    "autoNotifyGrades": true,
+    "dailyDigest": false
+  },
+  "display": {
+    "showStudentAvatars": true,
+    "compactTableRows": false,
+    "showRealtimeClock": true
+  }
+}

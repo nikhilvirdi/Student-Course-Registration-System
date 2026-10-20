@@ -304,6 +304,70 @@ const deleteAdminNotification = async (req, res, next) => {
   }
 };
 
+const getAdminSettings = async (req, res, next) => {
+  try {
+    const adminId = req.user.id;
+    const settings = await AdminService.getAdminSettings(adminId);
+    res.status(200).json({
+      success: true,
+      data: settings
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateAdminSettings = async (req, res, next) => {
+  try {
+    const adminId = req.user.id;
+    const result = await AdminService.updateAdminSettings(adminId, req.body);
+
+    await AuditService.logAction({
+      user_id: req.user.id,
+      user_name: result.profile?.name || req.user.name,
+      user_role: req.user.role,
+      action: 'UPDATE_SETTINGS',
+      target: 'System & Admin Settings',
+      type: 'system'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Settings updated successfully',
+      data: result
+    });
+  } catch (error) {
+    if (error.message.includes('already exists') || error.message.includes('required')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const resetAdminSettings = async (req, res, next) => {
+  try {
+    const adminId = req.user.id;
+    const result = await AdminService.resetAdminSettings(adminId);
+
+    await AuditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'RESET_SETTINGS',
+      target: 'System Settings Defaults',
+      type: 'system'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Settings reset to default configuration',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllEnrollments,
   getCourseStudents,
@@ -321,4 +385,7 @@ module.exports = {
   deleteStudent,
   broadcastAnnouncement,
   deleteAdminNotification,
+  getAdminSettings,
+  updateAdminSettings,
+  resetAdminSettings,
 };

@@ -56,4 +56,9 @@ router.post('/notifications', adminController.broadcastAnnouncement);
 // DELETE /api/admin/notifications/:id — delete notification
 router.delete('/notifications/:id', adminController.deleteAdminNotification);
 
+// Settings Routes
+router.get('/settings', adminController.getAdminSettings);
+router.put('/settings', adminController.updateAdminSettings);
+router.post('/settings/reset', adminController.resetAdminSettings);
+
 module.exports = router;

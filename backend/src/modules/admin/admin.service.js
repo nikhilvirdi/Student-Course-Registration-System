@@ -452,6 +452,191 @@ const deleteStudent = async (id) => {
   });
 };
 
+// ---------------------------------------------------------------------------
+// Admin & System Settings Methods
+// ---------------------------------------------------------------------------
+const path = require('path');
+const fs = require('fs');
+
+const SETTINGS_FILE = path.join(__dirname, '../../../data/system_settings.json');
+
+const DEFAULT_SETTINGS = {
+  academic: {
+    term: 'Spring 2026',
+    registrationOpen: true,
+    defaultCourseSeats: 50,
+    maxCreditsPerStudent: 24,
+    minPassingMarks: 40,
+  },
+  notifications: {
+    emailNewEnrollments: true,
+    alertLowSeats: true,
+    autoNotifyGrades: true,
+    dailyDigest: false,
+  },
+  display: {
+    showStudentAvatars: true,
+    compactTableRows: false,
+    showRealtimeClock: true,
+  }
+};
+
+function readSettingsFile() {
+  try {
+    const dataDir = path.dirname(SETTINGS_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    if (!fs.existsSync(SETTINGS_FILE)) {
+      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(DEFAULT_SETTINGS, null, 2));
+      return DEFAULT_SETTINGS;
+    }
+    const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Failed to read settings file, returning defaults:', err);
+    return DEFAULT_SETTINGS;
+  }
+}
+
+function writeSettingsFile(settings) {
+  try {
+    const dataDir = path.dirname(SETTINGS_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+  } catch (err) {
+    console.error('Failed to write settings file:', err);
+  }
+}
+
+const getAdminSettings = async (adminId) => {
+  // 1. Fetch Admin from Postgres via Prisma
+  const admin = await prisma.admin.findUnique({
+    where: { admin_id: adminId },
+    select: {
+      admin_id: true,
+      name: true,
+      email: true,
+      created_at: true,
+      updated_at: true,
+    }
+  });
+
+  if (!admin) {
+    throw new Error('Admin not found');
+  }
+
+  // 2. Fetch live system metadata from Prisma
+  const [totalCourses, totalDepartments, totalStudents, totalAuditLogs] = await Promise.all([
+    prisma.course.count(),
+    prisma.department.count(),
+    prisma.student.count(),
+    prisma.auditLog.count(),
+  ]);
+
+  // 3. Load saved settings file
+  const persistentSettings = readSettingsFile();
+
+  return {
+    profile: {
+      ...admin,
+      role: 'ADMIN',
+    },
+    academic: persistentSettings.academic || DEFAULT_SETTINGS.academic,
+    notifications: persistentSettings.notifications || DEFAULT_SETTINGS.notifications,
+    display: persistentSettings.display || DEFAULT_SETTINGS.display,
+    systemMeta: {
+      databaseEngine: 'PostgreSQL 16 via Prisma ORM',
+      connectionStatus: 'Connected',
+      totalCourses,
+      totalDepartments,
+      totalStudents,
+      totalAuditLogs,
+    }
+  };
+};
+
+const updateAdminSettings = async (adminId, data) => {
+  const { profile, academic, notifications, display } = data;
+
+  // 1. Update Admin in PostgreSQL if name or email provided
+  let updatedAdmin = null;
+  if (profile?.name || profile?.email) {
+    if (profile.email) {
+      const conflict = await prisma.admin.findFirst({
+        where: { email: profile.email.trim(), NOT: { admin_id: adminId } }
+      });
+      if (conflict) throw new Error('A user with this email already exists');
+    }
+
+    updatedAdmin = await prisma.admin.update({
+      where: { admin_id: adminId },
+      data: {
+        ...(profile.name && { name: profile.name.trim() }),
+        ...(profile.email && { email: profile.email.trim() }),
+      },
+      select: {
+        admin_id: true,
+        name: true,
+        email: true,
+        created_at: true,
+        updated_at: true,
+      }
+    });
+  }
+
+  // 2. Update persistent system settings
+  const current = readSettingsFile();
+  const newSettings = {
+    academic: {
+      ...current.academic,
+      ...(academic && {
+        ...(academic.term && { term: academic.term.trim() }),
+        ...(academic.registrationOpen !== undefined && { registrationOpen: Boolean(academic.registrationOpen) }),
+        ...(academic.defaultCourseSeats !== undefined && { defaultCourseSeats: parseInt(academic.defaultCourseSeats) }),
+        ...(academic.maxCreditsPerStudent !== undefined && { maxCreditsPerStudent: parseInt(academic.maxCreditsPerStudent) }),
+        ...(academic.minPassingMarks !== undefined && { minPassingMarks: parseFloat(academic.minPassingMarks) }),
+      })
+    },
+    notifications: {
+      ...current.notifications,
+      ...(notifications && {
+        ...(notifications.emailNewEnrollments !== undefined && { emailNewEnrollments: Boolean(notifications.emailNewEnrollments) }),
+        ...(notifications.alertLowSeats !== undefined && { alertLowSeats: Boolean(notifications.alertLowSeats) }),
+        ...(notifications.autoNotifyGrades !== undefined && { autoNotifyGrades: Boolean(notifications.autoNotifyGrades) }),
+        ...(notifications.dailyDigest !== undefined && { dailyDigest: Boolean(notifications.dailyDigest) }),
+      })
+    },
+    display: {
+      ...current.display,
+      ...(display && {
+        ...(display.showStudentAvatars !== undefined && { showStudentAvatars: Boolean(display.showStudentAvatars) }),
+        ...(display.compactTableRows !== undefined && { compactTableRows: Boolean(display.compactTableRows) }),
+        ...(display.showRealtimeClock !== undefined && { showRealtimeClock: Boolean(display.showRealtimeClock) }),
+      })
+    }
+  };
+
+  writeSettingsFile(newSettings);
+
+  return {
+    profile: updatedAdmin || await prisma.admin.findUnique({
+      where: { admin_id: adminId },
+      select: { admin_id: true, name: true, email: true, created_at: true, updated_at: true }
+    }),
+    academic: newSettings.academic,
+    notifications: newSettings.notifications,
+    display: newSettings.display,
+  };
+};
+
+const resetAdminSettings = async (adminId) => {
+  writeSettingsFile(DEFAULT_SETTINGS);
+  return await getAdminSettings(adminId);
+};
+
 module.exports = {
   getAllEnrollments,
   getCourseStudents,
@@ -468,4 +653,7 @@ module.exports = {
   deleteStudent,
   broadcastAnnouncement,
   deleteAdminNotification,
+  getAdminSettings,
+  updateAdminSettings,
+  resetAdminSettings,
 };

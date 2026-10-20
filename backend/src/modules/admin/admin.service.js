@@ -1,7 +1,27 @@
 const prisma = require('../../config/prisma');
 
-const getAllEnrollments = async () => {
+const getAllEnrollments = async (query = {}) => {
+  const { studentId, courseId, status, semester, search } = query;
+  const where = {};
+
+  if (studentId) where.student_id = studentId;
+  if (courseId) where.course_id = courseId;
+  if (status && status !== 'ALL') where.status = status;
+  if (semester && semester !== 'ALL') {
+    where.course = { semester_label: semester };
+  }
+  if (search && search.trim()) {
+    const q = search.trim();
+    where.OR = [
+      { student: { name: { contains: q, mode: 'insensitive' } } },
+      { student: { email: { contains: q, mode: 'insensitive' } } },
+      { course: { course_name: { contains: q, mode: 'insensitive' } } },
+      { course: { course_code: { contains: q, mode: 'insensitive' } } },
+    ];
+  }
+
   return await prisma.enrollment.findMany({
+    where,
     include: {
       student: {
         select: {
@@ -21,6 +41,8 @@ const getAllEnrollments = async () => {
           course_name: true,
           semester_label: true,
           credits: true,
+          available_seats: true,
+          max_seats: true,
         }
       },
       grade: true
@@ -247,7 +269,10 @@ const getAnalytics = async () => {
 const adminEnrollStudent = async (studentId, courseId) => {
   return await prisma.$transaction(async (tx) => {
     // 1. Check course exists and has seats
-    const course = await tx.course.findUnique({ where: { course_id: courseId } });
+    const course = await tx.course.findUnique({ 
+      where: { course_id: courseId },
+      include: { prerequisites: true }
+    });
     if (!course) throw new Error('Course not found');
     if (course.available_seats <= 0) throw new Error('No seats available in this course');
 
@@ -255,17 +280,48 @@ const adminEnrollStudent = async (studentId, courseId) => {
     const student = await tx.student.findUnique({ where: { student_id: studentId } });
     if (!student) throw new Error('Student not found');
 
+    // 2b. Check prerequisites
+    if (course.prerequisites && course.prerequisites.length > 0) {
+      const prereqIds = course.prerequisites.map(p => p.prerequisite_course_id);
+      const met = await tx.enrollment.findMany({
+        where: {
+          student_id: studentId,
+          course_id: { in: prereqIds },
+          status: { in: ['ACTIVE', 'COMPLETED'] }
+        }
+      });
+      if (met.length < prereqIds.length) {
+        throw new Error('Student has not completed the prerequisite courses for this class');
+      }
+    }
+
     // 3. Check for duplicate enrollment
     const existing = await tx.enrollment.findUnique({
       where: {
         student_id_course_id: { student_id: studentId, course_id: courseId }
       }
     });
-    if (existing) throw new Error('Student is already enrolled in this course');
+
+    if (existing) {
+      if (existing.status === 'DROPPED') {
+        const reactivated = await tx.enrollment.update({
+          where: { enrollment_id: existing.enrollment_id },
+          data: { status: 'ACTIVE' },
+          include: { student: true, course: true }
+        });
+        await tx.course.update({
+          where: { course_id: courseId },
+          data: { available_seats: { decrement: 1 } }
+        });
+        return reactivated;
+      }
+      throw new Error('Student is already enrolled in this course');
+    }
 
     // 4. Create enrollment
     const enrollment = await tx.enrollment.create({
-      data: { student_id: studentId, course_id: courseId }
+      data: { student_id: studentId, course_id: courseId },
+      include: { student: true, course: true }
     });
 
     // 5. Decrement seats
@@ -285,22 +341,99 @@ const adminDropEnrollment = async (enrollmentId) => {
     });
     if (!enrollment) throw new Error('Enrollment not found');
     if (enrollment.status === 'COMPLETED') {
-      throw new Error('Cannot de-enroll a completed course with an assigned grade');
+      throw new Error('Cannot remove a completed course with an assigned grade. Reset the grade first.');
     }
 
-    // Delete any existing grade if somehow present
+    // Delete any existing grade if present
     await tx.grade.deleteMany({ where: { enrollment_id: enrollmentId } });
 
     // Delete enrollment
     await tx.enrollment.delete({ where: { enrollment_id: enrollmentId } });
 
-    // Increment seats
-    await tx.course.update({
-      where: { course_id: enrollment.course_id },
-      data: { available_seats: { increment: 1 } }
-    });
+    // Increment seats only if it was ACTIVE (if it was already DROPPED, seat was already released)
+    if (enrollment.status === 'ACTIVE') {
+      await tx.course.update({
+        where: { course_id: enrollment.course_id },
+        data: { available_seats: { increment: 1 } }
+      });
+    }
 
     return { message: 'Enrollment removed successfully' };
+  });
+};
+
+const adminUpdateEnrollmentStatus = async (enrollmentId, newStatus) => {
+  const allowed = ['ACTIVE', 'COMPLETED', 'DROPPED'];
+  if (!allowed.includes(newStatus)) {
+    throw new Error('Invalid status. Allowed values: ACTIVE, COMPLETED, DROPPED');
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    const enrollment = await tx.enrollment.findUnique({
+      where: { enrollment_id: enrollmentId },
+      include: { course: true, grade: true }
+    });
+
+    if (!enrollment) throw new Error('Enrollment not found');
+    if (enrollment.status === newStatus) return enrollment;
+
+    if (enrollment.status === 'COMPLETED' && newStatus !== 'COMPLETED') {
+      throw new Error('Cannot change status of a completed course with an assigned grade. Reset the grade first.');
+    }
+
+    if (newStatus === 'COMPLETED' && !enrollment.grade) {
+      throw new Error('Cannot set status to COMPLETED without an assigned grade. Use the Grades tab to assign marks.');
+    }
+
+    // Seat adjustments:
+    // If moving from ACTIVE to DROPPED: seat is freed (+1 available_seats)
+    if (enrollment.status === 'ACTIVE' && newStatus === 'DROPPED') {
+      await tx.course.update({
+        where: { course_id: enrollment.course_id },
+        data: { available_seats: { increment: 1 } }
+      });
+    }
+
+    // If moving from DROPPED to ACTIVE: seat is occupied (-1 available_seats)
+    if (enrollment.status === 'DROPPED' && newStatus === 'ACTIVE') {
+      if (enrollment.course.available_seats <= 0) {
+        throw new Error('Cannot activate enrollment: No available seats left in this course');
+      }
+      await tx.course.update({
+        where: { course_id: enrollment.course_id },
+        data: { available_seats: { decrement: 1 } }
+      });
+    }
+
+    const updated = await tx.enrollment.update({
+      where: { enrollment_id: enrollmentId },
+      data: { status: newStatus },
+      include: {
+        student: {
+          select: {
+            student_id: true,
+            name: true,
+            email: true,
+            semester: true,
+            department: { select: { department_name: true } }
+          }
+        },
+        course: {
+          select: {
+            course_id: true,
+            course_code: true,
+            course_name: true,
+            semester_label: true,
+            credits: true,
+            available_seats: true,
+            max_seats: true,
+          }
+        },
+        grade: true
+      }
+    });
+
+    return updated;
   });
 };
 
@@ -646,6 +779,7 @@ module.exports = {
   getAnalytics,
   adminEnrollStudent,
   adminDropEnrollment,
+  adminUpdateEnrollmentStatus,
   getAllDocuments,
   getAllNotifications,
   createStudent,

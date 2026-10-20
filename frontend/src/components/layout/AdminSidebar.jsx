@@ -93,7 +93,7 @@ export default function AdminSidebar({ isOpen, setIsOpen }) {
                   return (
                     <Link
                       key={item.name}
-                      href={item.href}
+                      to={item.href}
                       className={cn(
                         "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all group relative",
                         isActive 
@@ -117,7 +117,7 @@ export default function AdminSidebar({ isOpen, setIsOpen }) {
 
         {/* Bottom Section */}
         <div className="p-6 border-t border-slate-800/50 dark:border-neutral-800/50 bg-slate-900/50 dark:bg-neutral-950/50">
-          <Link href="/dashboard/admin/settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-slate-800/50 dark:hover:bg-neutral-800/50 transition-all mb-4 group">
+          <Link to="/dashboard/admin/settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-slate-800/50 dark:hover:bg-neutral-800/50 transition-all mb-4 group">
             <Settings className="w-5 h-5 text-slate-500 dark:text-neutral-500 group-hover:text-slate-300 dark:group-hover:text-neutral-300" />
             Settings
           </Link>

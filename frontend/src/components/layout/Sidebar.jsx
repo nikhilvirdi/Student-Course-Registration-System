@@ -79,7 +79,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                to={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all group",
                   isActive 
@@ -101,7 +101,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                to={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all group",
                   isActive 
@@ -117,7 +117,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
           {/* User Profile Section */}
           <div className="mt-4 pt-4 border-t border-sidebar-border/50">
-            <Link href="/dashboard/profile" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-accent/50 transition-all mb-2 group">
+            <Link to="/dashboard/profile" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-sidebar-accent/50 transition-all mb-2 group">
               <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs group-hover:scale-105 transition-transform">
                 {user.avatar || (user.firstName[0] + user.lastName[0])}
               </div>

@@ -127,7 +127,12 @@ const updatePassword = async (req, res, next) => {
 
 const getMyLogs = async (req, res, next) => {
   try {
-    const logs = await auditService.getUserLogs(req.user.id);
+    const { type, search, limit } = req.query;
+    const logs = await auditService.getUserLogs(req.user.id, {
+      type,
+      search,
+      limit: limit ? parseInt(limit) : 50
+    });
     res.status(200).json({
       success: true,
       data: logs

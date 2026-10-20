@@ -17,6 +17,9 @@ router.post('/enrollments', adminController.adminEnrollStudent);
 // DELETE /api/admin/enrollments/:id — admin de-enrolls
 router.delete('/enrollments/:id', adminController.adminDropEnrollment);
 
+// PUT /api/admin/enrollments/:id — admin updates enrollment status
+router.put('/enrollments/:id', adminController.adminUpdateEnrollmentStatus);
+
 // GET /api/admin/courses/:id/students
 router.get('/courses/:id/students', adminController.getCourseStudents);
 

@@ -3,7 +3,8 @@ const AuditService = require('./audit.service');
 
 const getAllEnrollments = async (req, res, next) => {
   try {
-    const enrollments = await AdminService.getAllEnrollments();
+    const { studentId, courseId, status, semester, search } = req.query;
+    const enrollments = await AdminService.getAllEnrollments({ studentId, courseId, status, semester, search });
     res.status(200).json({
       success: true,
       data: enrollments
@@ -78,7 +79,13 @@ const getAnalytics = async (req, res, next) => {
 
 const getSystemLogs = async (req, res, next) => {
   try {
-    const logs = await AuditService.getLogs();
+    const { type, role, search, limit } = req.query;
+    const logs = await AuditService.getLogs({
+      type,
+      role,
+      search,
+      limit: limit ? parseInt(limit) : 100
+    });
     res.status(200).json({
       success: true,
       data: logs
@@ -141,6 +148,44 @@ const adminDropEnrollment = async (req, res, next) => {
     });
   } catch (error) {
     if (error.message.includes('not found') || error.message.includes('Cannot')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const adminUpdateEnrollmentStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required' });
+    }
+
+    const updated = await AdminService.adminUpdateEnrollmentStatus(id, status);
+
+    // Log action
+    await AuditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'UPDATE_ENROLLMENT_STATUS',
+      target: `Enrollment: ${id} → ${status}`,
+      type: 'course'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Enrollment status updated to ${status}`,
+      data: updated
+    });
+  } catch (error) {
+    if (
+      error.message.includes('not found') ||
+      error.message.includes('Invalid status') ||
+      error.message.includes('Cannot') ||
+      error.message.includes('No available seats')
+    ) {
       return res.status(400).json({ success: false, message: error.message });
     }
     next(error);
@@ -378,6 +423,7 @@ module.exports = {
   getSystemLogs,
   adminEnrollStudent,
   adminDropEnrollment,
+  adminUpdateEnrollmentStatus,
   getAllDocuments,
   getAllNotifications,
   createStudent,

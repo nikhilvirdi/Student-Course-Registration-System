@@ -3,14 +3,48 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/utils';
 
+// Deterministic Demo Profiles for Unauthenticated Development Mode
+export const DEMO_STUDENT = {
+  id: '00000000-0000-4000-a000-000000000001',
+  student_id: '00000000-0000-4000-a000-000000000001',
+  name: 'Alex Doe',
+  firstName: 'Alex',
+  lastName: 'Doe',
+  email: 'alex.doe@scrs.edu',
+  role: 'STUDENT',
+  semester: 3,
+  department: { department_id: '10000008-0000-4000-a000-000000000008', department_name: 'Computer Science & Engineering' },
+  avatar: 'AD',
+  preferences: {
+    language: 'English (US)',
+    notifications: { email: true, push: true, updates: true },
+    privacy: { profilePublic: true, showGrades: false }
+  }
+};
+
+export const DEMO_ADMIN = {
+  id: 'a0000000-0000-4000-a000-000000000001',
+  admin_id: 'a0000000-0000-4000-a000-000000000001',
+  name: 'System Admin',
+  firstName: 'System',
+  lastName: 'Admin',
+  email: 'admin@scrs.com',
+  role: 'ADMIN',
+  avatar: 'SA',
+  preferences: {
+    language: 'English (US)',
+    notifications: { email: true, push: true, updates: true },
+    privacy: { profilePublic: true, showGrades: false }
+  }
+};
+
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
-  // --- State ---
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // --- Unauthenticated Development Mode State ---
+  const [activeRole, setActiveRole] = useState('STUDENT');
+  const [user, setUser] = useState(DEMO_STUDENT);
+  const [loading, setLoading] = useState(false);
 
   const [courses, setCourses] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -23,234 +57,196 @@ export function AppProvider({ children }) {
     documents: [],
   });
 
-  // --- Persistence (Local Storage for auth + activities) ---
-  useEffect(() => {
-    const savedToken = localStorage.getItem('scrs_token');
-    const savedUser = localStorage.getItem('scrs_user');
-    
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-      setIsAuthenticated(true);
+  // Switch demo mode role between STUDENT and ADMIN
+  const switchRole = useCallback((newRole) => {
+    const targetRole = newRole.toUpperCase();
+    setActiveRole(targetRole);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('scrs_demo_role', targetRole);
+    }
+    if (targetRole === 'ADMIN') {
+      setUser(DEMO_ADMIN);
+    } else {
+      setUser(DEMO_STUDENT);
     }
   }, []);
 
-  // Fetch real courses and user-specific data from backend when token/auth changes
+  // Restore saved demo role preference on client mount
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        setLoading(true);
-        const data = await apiFetch('/courses');
-        if (data.success && data.data) {
-          let enrolledCourseIds = new Set();
-          
-          if (token) {
-            try {
-              const enrolData = await apiFetch('/enrollments/my', { token });
-              if (enrolData.success && enrolData.data) {
-                enrolData.data.forEach(e => enrolledCourseIds.add(e.course_id));
-              }
-            } catch (err) {
-              console.error("Failed to fetch enrollments:", err);
+    if (typeof window !== 'undefined') {
+      const savedRole = localStorage.getItem('scrs_demo_role');
+      if (savedRole === 'ADMIN') {
+        setActiveRole('ADMIN');
+        setUser(DEMO_ADMIN);
+      } else {
+        setActiveRole('STUDENT');
+        setUser(DEMO_STUDENT);
+      }
+    }
+  }, []);
+
+  // Fetch courses and enrollment states from backend
+  const fetchCourses = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await apiFetch('/courses');
+      if (data.success && data.data) {
+        let enrolledCourseIds = new Set();
+        
+        if (activeRole === 'STUDENT') {
+          try {
+            const enrolData = await apiFetch('/enrollments/my');
+            if (enrolData.success && enrolData.data) {
+              enrolData.data.forEach(e => enrolledCourseIds.add(e.course_id));
             }
+          } catch (err) {
+            console.warn("Could not fetch student enrollments:", err.message);
           }
-
-          const colors = ['#00D1FF', '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444'];
-          const mappedCourses = data.data.map((c, index) => ({
-            id: c.course_id,
-            code: c.course_code || c.course_id.substring(0, 8).toUpperCase(),
-            name: c.course_name,
-            instructor: c.faculty?.faculty_name || 'TBA',
-            semester: c.semester_label || 'Current Semester',
-            progress: 0,
-            color: colors[index % colors.length],
-            schedule: c.schedule_days && c.schedule_time
-              ? `${c.schedule_days} ${c.schedule_time}`
-              : null,
-            schedule_days: c.schedule_days || null,
-            schedule_time: c.schedule_time || null,
-            room: c.room || null,
-            semester_label: c.semester_label || null,
-            status: enrolledCourseIds.has(c.course_id) ? 'Enrolled' : 'Available',
-            students: c.max_seats - c.available_seats,
-            credits: c.credits,
-            tags: [c.department?.department_name || 'General'],
-            nextClass: c.schedule_days && c.schedule_time
-              ? `${c.schedule_days.split(',')[0].trim()} ${c.schedule_time.split('-')[0].trim()}`
-              : null,
-            materials: [],
-            assignments: [],
-            available_seats: c.available_seats,
-            max_seats: c.max_seats,
-            description: c.description
-          }));
-          setCourses(mappedCourses);
-        } else {
-          setCourses([]);
         }
-      } catch (err) {
-        console.error("Failed to fetch courses:", err);
+
+        const colors = ['#00D1FF', '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444'];
+        const mappedCourses = data.data.map((c, index) => ({
+          id: c.course_id,
+          code: c.course_code || c.course_id.substring(0, 8).toUpperCase(),
+          name: c.course_name,
+          instructor: c.faculty?.faculty_name || 'TBA',
+          semester: c.semester_label || 'Current Semester',
+          progress: 0,
+          color: colors[index % colors.length],
+          schedule: c.schedule_days && c.schedule_time
+            ? `${c.schedule_days} ${c.schedule_time}`
+            : null,
+          schedule_days: c.schedule_days || null,
+          schedule_time: c.schedule_time || null,
+          room: c.room || null,
+          semester_label: c.semester_label || null,
+          status: enrolledCourseIds.has(c.course_id) ? 'Enrolled' : 'Available',
+          students: c.max_seats - c.available_seats,
+          credits: c.credits,
+          tags: [c.department?.department_name || 'General'],
+          nextClass: c.schedule_days && c.schedule_time
+            ? `${c.schedule_days.split(',')[0].trim()} ${c.schedule_time.split('-')[0].trim()}`
+            : null,
+          materials: [],
+          assignments: [],
+          available_seats: c.available_seats,
+          max_seats: c.max_seats,
+          description: c.description
+        }));
+        setCourses(mappedCourses);
+      } else {
         setCourses([]);
-      } finally {
-        setLoading(false);
       }
-    };
-    
+    } catch (err) {
+      console.error("Failed to fetch courses:", err);
+      setCourses([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeRole]);
+
+  useEffect(() => {
     fetchCourses();
-  }, [token]);
+  }, [fetchCourses]);
 
-  // Fetch tasks, notifications, documents from backend when token is available
-  useEffect(() => {
-    if (!token) return;
+  // Fetch tasks, notifications, documents when in STUDENT mode
+  const fetchStudentData = useCallback(async () => {
+    if (activeRole !== 'STUDENT') {
+      setTasks([]);
+      setNotifications([]);
+      setDocuments([]);
+      return;
+    }
 
-    const fetchUserData = async () => {
-      try {
-        const [tasksRes, notifRes, docsRes] = await Promise.all([
-          apiFetch('/tasks', { token }).catch(() => ({ success: false })),
-          apiFetch('/notifications', { token }).catch(() => ({ success: false })),
-          apiFetch('/documents', { token }).catch(() => ({ success: false })),
-        ]);
+    try {
+      const [tasksRes, notifRes, docsRes] = await Promise.all([
+        apiFetch('/tasks').catch(() => ({ success: false })),
+        apiFetch('/notifications').catch(() => ({ success: false })),
+        apiFetch('/documents').catch(() => ({ success: false })),
+      ]);
 
-        if (tasksRes.success && tasksRes.data) {
-          setTasks(tasksRes.data.map(t => ({
-            id: t.task_id,
-            title: t.title,
-            category: t.category,
-            priority: t.priority,
-            due_date: t.due_date,
-            completed: t.completed,
-            _backendId: t.task_id,
-          })));
-        }
-
-        if (notifRes.success && notifRes.data) {
-          setNotifications(notifRes.data.map(n => ({
-            id: n.notification_id,
-            title: n.title,
-            message: n.message,
-            type: n.type,
-            read: n.read,
-            time: new Date(n.created_at).toLocaleString(),
-            _backendId: n.notification_id,
-          })));
-        }
-
-        if (docsRes.success && docsRes.data) {
-          setDocuments(docsRes.data.map(d => ({
-            id: d.document_id,
-            name: d.name,
-            type: d.type,
-            size: d.size,
-            url: d.url,
-            date: new Date(d.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            _backendId: d.document_id,
-          })));
-        }
-      } catch (err) {
-        console.error("Failed to fetch user data:", err);
+      if (tasksRes.success && tasksRes.data) {
+        setTasks(tasksRes.data.map(t => ({
+          id: t.task_id,
+          title: t.title,
+          category: t.category,
+          priority: t.priority,
+          due_date: t.due_date,
+          dueDate: t.due_date, // normalize for UI compatibility
+          completed: t.completed,
+          _backendId: t.task_id,
+        })));
       }
-    };
 
-    fetchUserData();
-  }, [token]);
+      if (notifRes.success && notifRes.data) {
+        setNotifications(notifRes.data.map(n => ({
+          id: n.notification_id,
+          title: n.title,
+          message: n.message,
+          type: n.type,
+          read: n.read,
+          time: new Date(n.created_at).toLocaleString(),
+          _backendId: n.notification_id,
+        })));
+      }
+
+      if (docsRes.success && docsRes.data) {
+        setDocuments(docsRes.data.map(d => ({
+          id: d.document_id,
+          name: d.name,
+          type: d.type,
+          size: d.size,
+          url: d.url,
+          date: new Date(d.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          _backendId: d.document_id,
+        })));
+      }
+    } catch (err) {
+      console.error("Failed to fetch student data:", err);
+    }
+  }, [activeRole]);
 
   useEffect(() => {
-    if (user) localStorage.setItem('scrs_user', JSON.stringify(user));
-    else localStorage.removeItem('scrs_user');
-  }, [user]);
-
-  const API_BASE_URL = 'http://localhost:5000/api';
+    fetchStudentData();
+  }, [fetchStudentData]);
 
   // --- Actions ---
 
-  // Auth Actions
-  const login = useCallback(async (email, password) => {
-    try {
-      const data = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: { email, password }
-      });
-      
-      const { user: userData, token: jwtToken } = data.data;
-      
-      // Ensure we merge some mock preferences if the backend doesn't provide them yet
-      const [firstName, ...lastNameParts] = userData.name ? userData.name.split(' ') : ['User', ''];
-      const lastName = lastNameParts.join(' ');
-      
-      const fullUser = {
-        ...userData,
-        firstName,
-        lastName,
-        avatar: userData.name ? userData.name.substring(0, 2).toUpperCase() : 'U',
-        preferences: {
-          language: 'English (US)',
-          notifications: { email: true, push: true, updates: true },
-          privacy: { profilePublic: true, showGrades: false }
-        }
-      };
-
-      setUser(fullUser);
-      setToken(jwtToken);
-      setIsAuthenticated(true);
-      return fullUser;
-    } catch (err) {
-      throw new Error(err.message || 'Network error');
-    }
-  }, []);
-
-  const register = useCallback(async (userData) => {
-    try {
-      // Pass the full userData to the backend, which now handles name construction and roles
-      await apiFetch('/auth/register', {
-        method: 'POST',
-        body: userData
-      });
-      
-      // Automatically log in after registration
-      return await login(userData.email, userData.password);
-    } catch (err) {
-      throw new Error(err.message || 'Network error');
-    }
-  }, [login]);
-
+  // Auth compatibility stubs (non-blocking for backwards compatibility)
+  const login = useCallback(async () => user, [user]);
+  const register = useCallback(async () => user, [user]);
   const logout = useCallback(() => {
-    setUser(null);
-    setToken(null);
-    setIsAuthenticated(false);
-    setTasks([]);
-    setNotifications([]);
-    setDocuments([]);
-  }, []);
+    // In unauthenticated mode, logout switches back to student view
+    switchRole('STUDENT');
+  }, [switchRole]);
 
   // User Actions
   const updateProfile = useCallback(async (updates) => {
     try {
       const data = await apiFetch('/auth/profile', {
         method: 'PATCH',
-        token,
         body: updates
       });
-      
       setUser(prev => prev ? ({ ...prev, ...data.data }) : null);
       return data;
     } catch (err) {
-      throw new Error(err.message || 'Network error');
+      // Local fallback in dev mode if network issue
+      setUser(prev => prev ? ({ ...prev, ...updates }) : null);
+      return { success: true, data: updates };
     }
-  }, [token]);
+  }, []);
 
   const updatePassword = useCallback(async (currentPassword, newPassword) => {
     try {
       const data = await apiFetch('/auth/password', {
         method: 'PATCH',
-        token,
         body: { currentPassword, newPassword }
       });
-      
       return data;
     } catch (err) {
-      throw new Error(err.message || 'Network error');
+      throw new Error(err.message || 'Failed to update password');
     }
-  }, [token]);
+  }, []);
 
   const updatePreferences = useCallback((updates) => {
     setUser(prev => prev ? ({
@@ -264,81 +260,122 @@ export function AppProvider({ children }) {
     try {
       const data = await apiFetch('/enrollments/register', {
         method: 'POST',
-        token,
         body: { course_id: courseId }
       });
-      
       setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: 'Enrolled' } : c));
       return data;
     } catch (err) {
-      throw new Error(err.message || 'Network error');
+      throw new Error(err.message || 'Enrollment failed');
     }
-  }, [token, courses]);
+  }, []);
+
+  const dropCourse = useCallback(async (courseId) => {
+    try {
+      const data = await apiFetch(`/enrollments/drop/${courseId}`, {
+        method: 'DELETE',
+      });
+      setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: 'Available' } : c));
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Drop course failed');
+    }
+  }, []);
 
   // Grade Actions
   const getMyGrades = useCallback(async () => {
     try {
-      const data = await apiFetch('/grades/my', { token });
+      const data = await apiFetch('/grades/my');
       return data;
     } catch (err) {
-      throw new Error(err.message || 'Network error');
+      throw new Error(err.message || 'Failed to fetch grades');
     }
-  }, [token]);
+  }, []);
 
   const getMyGPA = useCallback(async () => {
     try {
-      const data = await apiFetch('/grades/gpa', { token });
+      const data = await apiFetch('/grades/gpa');
       return data;
     } catch (err) {
-      throw new Error(err.message || 'Network error');
+      throw new Error(err.message || 'Failed to calculate GPA');
     }
-  }, [token]);
+  }, []);
 
   const assignGrade = useCallback(async (enrollment_id, marks) => {
     try {
       const data = await apiFetch('/grades', {
         method: 'POST',
-        token,
-        body: { enrollment_id, marks }
+        body: { enrollment_id, marks_obtained: marks }
       });
       return data;
     } catch (err) {
-      throw new Error(err.message || 'Network error');
+      throw new Error(err.message || 'Failed to assign grade');
     }
-  }, [token]);
-  
-  const getStudentGrades = useCallback(async (student_id) => {
+  }, []);
+
+  const updateGrade = useCallback(async (gradeId, marks) => {
     try {
-      const data = await apiFetch(`/grades/student/${student_id}`, { token });
+      const data = await apiFetch(`/grades/${gradeId}`, {
+        method: 'PUT',
+        body: { marks_obtained: marks }
+      });
       return data;
     } catch (err) {
-      throw new Error(err.message || 'Network error');
+      throw new Error(err.message || 'Failed to update grade');
     }
-  }, [token]);
+  }, []);
+
+  const getStudentGrades = useCallback(async (student_id) => {
+    try {
+      const data = await apiFetch(`/grades/student/${student_id}`);
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to fetch student grades');
+    }
+  }, []);
 
   // Enrollment Admin Actions
   const getAllEnrollments = useCallback(async () => {
     try {
-      const data = await apiFetch('/enrollments/all', { token });
+      const data = await apiFetch('/enrollments/all');
       return data;
     } catch (err) {
-      throw new Error(err.message || 'Network error');
+      throw new Error(err.message || 'Failed to fetch enrollments');
     }
-  }, [token]);
+  }, []);
 
-  // =====================================
-  // Task Actions — NOW BACKED BY REAL API
-  // =====================================
+  const adminEnrollStudent = useCallback(async (studentId, courseId) => {
+    try {
+      const data = await apiFetch('/admin/enrollments', {
+        method: 'POST',
+        body: { student_id: studentId, course_id: courseId }
+      });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to enroll student');
+    }
+  }, []);
+
+  const adminDropEnrollment = useCallback(async (enrollmentId) => {
+    try {
+      const data = await apiFetch(`/admin/enrollments/${enrollmentId}`, {
+        method: 'DELETE',
+      });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to drop enrollment');
+    }
+  }, []);
+
+  // Task Actions
   const addTask = useCallback(async (task) => {
     try {
       const data = await apiFetch('/tasks', {
         method: 'POST',
-        token,
         body: {
           title: task.title,
           category: task.category || 'Other',
           priority: task.priority || 'Medium',
-          due_date: task.due_date || null,
+          due_date: task.due_date || task.dueDate || null,
         }
       });
 
@@ -350,6 +387,7 @@ export function AppProvider({ children }) {
           category: t.category,
           priority: t.priority,
           due_date: t.due_date,
+          dueDate: t.due_date,
           completed: t.completed,
           _backendId: t.task_id,
         }, ...prev]);
@@ -357,32 +395,31 @@ export function AppProvider({ children }) {
 
       return data;
     } catch (err) {
-      // Fallback to local if backend fails
       const newTask = {
         id: Date.now(),
         completed: false,
         priority: 'Medium',
+        due_date: task.due_date || task.dueDate,
+        dueDate: task.due_date || task.dueDate,
         ...task
       };
       setTasks(prev => [newTask, ...prev]);
-      throw err;
+      return { success: true, data: newTask };
     }
-  }, [token]);
+  }, []);
 
   const updateTask = useCallback(async (id, updates) => {
-    // Optimistic update
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     try {
       const backendId = tasks.find(t => t.id === id)?._backendId || id;
       await apiFetch(`/tasks/${backendId}`, {
         method: 'PUT',
-        token,
         body: updates
       });
     } catch (err) {
       console.error('Failed to update task on backend:', err);
     }
-  }, [token, tasks]);
+  }, [tasks]);
 
   const deleteTask = useCallback(async (id) => {
     const taskToDelete = tasks.find(t => t.id === id);
@@ -390,13 +427,12 @@ export function AppProvider({ children }) {
     try {
       const backendId = taskToDelete?._backendId || id;
       await apiFetch(`/tasks/${backendId}`, {
-        method: 'DELETE',
-        token
+        method: 'DELETE'
       });
     } catch (err) {
       console.error('Failed to delete task on backend:', err);
     }
-  }, [token, tasks]);
+  }, [tasks]);
 
   const toggleTask = useCallback(async (id) => {
     const task = tasks.find(t => t.id === id);
@@ -409,41 +445,36 @@ export function AppProvider({ children }) {
       const backendId = task._backendId || id;
       await apiFetch(`/tasks/${backendId}`, {
         method: 'PUT',
-        token,
         body: { completed: newState }
       });
     } catch (err) {
       console.error('Failed to toggle task on backend:', err);
     }
-  }, [token, tasks]);
+  }, [tasks]);
 
-  // =============================================
-  // Notification Actions — NOW BACKED BY REAL API
-  // =============================================
+  // Notification Actions
   const markNotificationRead = useCallback(async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     try {
       const backendId = notifications.find(n => n.id === id)?._backendId || id;
       await apiFetch(`/notifications/${backendId}/read`, {
-        method: 'PUT',
-        token
+        method: 'PUT'
       });
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
     }
-  }, [token, notifications]);
+  }, [notifications]);
 
   const markAllNotificationsRead = useCallback(async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     try {
       await apiFetch('/notifications/read-all', {
-        method: 'PUT',
-        token
+        method: 'PUT'
       });
     } catch (err) {
       console.error('Failed to mark all notifications as read:', err);
     }
-  }, [token]);
+  }, []);
 
   const deleteNotification = useCallback(async (id) => {
     const notifToDelete = notifications.find(n => n.id === id);
@@ -451,22 +482,18 @@ export function AppProvider({ children }) {
     try {
       const backendId = notifToDelete?._backendId || id;
       await apiFetch(`/notifications/${backendId}`, {
-        method: 'DELETE',
-        token
+        method: 'DELETE'
       });
     } catch (err) {
       console.error('Failed to delete notification:', err);
     }
-  }, [token, notifications]);
+  }, [notifications]);
 
-  // ==========================================
-  // Document Actions — NOW BACKED BY REAL API
-  // ==========================================
+  // Document Actions
   const uploadDocument = useCallback(async (doc) => {
     try {
       const data = await apiFetch('/documents', {
         method: 'POST',
-        token,
         body: {
           name: doc.name,
           type: doc.type || 'Other',
@@ -490,16 +517,15 @@ export function AppProvider({ children }) {
 
       return data;
     } catch (err) {
-      // Fallback to local
       const newDoc = {
         id: Date.now(),
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         ...doc
       };
       setDocuments(prev => [newDoc, ...prev]);
-      throw err;
+      return { success: true, data: newDoc };
     }
-  }, [token]);
+  }, []);
 
   const deleteDocument = useCallback(async (id) => {
     const docToDelete = documents.find(d => d.id === id);
@@ -507,13 +533,12 @@ export function AppProvider({ children }) {
     try {
       const backendId = docToDelete?._backendId || id;
       await apiFetch(`/documents/${backendId}`, {
-        method: 'DELETE',
-        token
+        method: 'DELETE'
       });
     } catch (err) {
       console.error('Failed to delete document:', err);
     }
-  }, [token, documents]);
+  }, [documents]);
 
   // Search Logic
   useEffect(() => {
@@ -532,9 +557,13 @@ export function AppProvider({ children }) {
 
   const value = {
     user,
-    token,
-    isAuthenticated,
+    token: 'dev-mode-token',
+    isAuthenticated: true,
+    authLoading: false,
     loading,
+    activeRole,
+    switchRole,
+    isUnauthenticatedDevMode: true,
     courses,
     tasks,
     notifications,
@@ -549,6 +578,7 @@ export function AppProvider({ children }) {
     updatePassword,
     updatePreferences,
     enrollCourse,
+    dropCourse,
     addTask,
     updateTask,
     deleteTask,
@@ -561,8 +591,12 @@ export function AppProvider({ children }) {
     getMyGrades,
     getMyGPA,
     assignGrade,
+    updateGrade,
     getStudentGrades,
     getAllEnrollments,
+    adminEnrollStudent,
+    adminDropEnrollment,
+    fetchCourses,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

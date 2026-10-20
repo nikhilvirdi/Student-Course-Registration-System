@@ -29,6 +29,40 @@ const assignGrade = async (req, res, next) => {
   }
 };
 
+const updateGrade = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { marks_obtained } = req.body;
+
+    if (marks_obtained === undefined || marks_obtained === null) {
+      return res.status(400).json({ success: false, message: 'marks_obtained is required' });
+    }
+
+    const grade = await gradesService.updateGrade(id, marks_obtained);
+
+    // Log action
+    await auditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'UPDATE_GRADE',
+      target: `Grade: ${id}, New Marks: ${marks_obtained}`,
+      type: 'system'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Grade updated successfully',
+      data: grade
+    });
+  } catch (error) {
+    if (error.message === 'Grade not found') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
 const getMyGrades = async (req, res, next) => {
   try {
     // req.user is set by auth.middleware
@@ -71,8 +105,8 @@ const getStudentGrades = async (req, res, next) => {
 
 module.exports = {
   assignGrade,
+  updateGrade,
   getMyGrades,
   getGPA,
   getStudentGrades
 };
-

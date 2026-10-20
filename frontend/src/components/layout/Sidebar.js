@@ -12,7 +12,6 @@ import {
   Settings, 
   User,
   Users, 
-  LogOut,
   Menu,
   CheckSquare,
   Award
@@ -41,13 +40,9 @@ import { useRouter } from 'next/navigation';
 
 export default function Sidebar({ isOpen, setIsOpen }) {
   const pathname = usePathname();
-  const { user, logout } = useApp();
+  const { user, switchRole } = useApp();
   const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
-    router.push('/auth/login');
-  };
 
   if (!user) return null;
 
@@ -137,11 +132,18 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               </div>
             </Link>
             <button 
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors group"
+              onClick={() => {
+                switchRole('ADMIN');
+                router.push('/dashboard/admin');
+              }}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 border border-indigo-500/20 transition-all group mt-2"
+              title="Switch demo identity to Admin"
             >
-              <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
-              Logout
+              <span className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Switch to Admin
+              </span>
+              <span className="text-[10px] uppercase tracking-wider font-bold bg-indigo-500 text-white px-1.5 py-0.5 rounded">DEV</span>
             </button>
           </div>
         </div>

@@ -7,12 +7,12 @@ import {
   GraduationCap, 
   TrendingUp, 
   Activity, 
-  Bell, 
   ShieldCheck, 
   Server,
   ChevronRight,
   Search,
-  Plus
+  Plus,
+  BarChart3,
 } from 'lucide-react';
 import { cn, displayName, apiFetch, formatDate } from '@/lib/utils';
 import Link from 'next/link';
@@ -32,14 +32,14 @@ export default function AdminDashboardPage() {
         // Fetch stats and logs in parallel
         const [statsData, logsData] = await Promise.all([
           apiFetch('/admin/stats', { token }),
-          apiFetch('/admin/logs', { token }) // Using the admin logs endpoint
+          apiFetch('/admin/logs', { token })
         ]);
 
         if (statsData.success) {
           setStats(statsData.data);
         }
         if (logsData.success) {
-          setLogs(logsData.data.slice(0, 8)); // Get latest 8 logs
+          setLogs(logsData.data.slice(0, 8));
         }
       } catch (err) {
         console.error('Failed to fetch admin data', err);
@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
     },
     {
       title: 'Total Enrollments',
-      value: stats?.totalEnrollments || 0,
+      value: stats?.enrollmentsCount || 0,
       trend: 'Across all courses',
       trendUp: true,
       icon: GraduationCap,
@@ -93,9 +93,6 @@ export default function AdminDashboardPage() {
             <Server className="w-3.5 h-3.5" />
             System Status: Healthy
           </div>
-          <button className="p-2 bg-sidebar-accent hover:bg-sidebar-accent/80 rounded-lg text-sidebar-fg transition-colors">
-            <Search className="w-5 h-5" />
-          </button>
         </div>
       </div>
 
@@ -126,9 +123,6 @@ export default function AdminDashboardPage() {
                 <TrendingUp className="w-3.5 h-3.5" />
                 {stat.trend}
               </span>
-              <Link href="#" className="text-xs font-medium text-sidebar-fg hover:text-primary flex items-center gap-1 group/link">
-                Analysis <ChevronRight className="w-3 h-3 group-hover/link:translate-x-0.5 transition-transform" />
-              </Link>
             </div>
           </div>
         ))}
@@ -143,10 +137,10 @@ export default function AdminDashboardPage() {
           </div>
           <div className="p-6 grid grid-cols-1 gap-3 flex-1">
             {[
-              { label: 'Register New Student', href: '/dashboard/admin/students', icon: Users, color: 'text-blue-500' },
+              { label: 'Manage Students', href: '/dashboard/admin/students', icon: Users, color: 'text-blue-500' },
               { label: 'Create New Course', href: '/dashboard/admin/courses', icon: Plus, color: 'text-green-500' },
               { label: 'Audit Enrollments', href: '/dashboard/admin/enrollments', icon: ShieldCheck, color: 'text-amber-500' },
-              { label: 'System Settings', href: '/dashboard/settings', icon: Server, color: 'text-sidebar-fg' },
+              { label: 'Academic Analytics', href: '/dashboard/admin/analytics', icon: BarChart3, color: 'text-purple-500' },
             ].map((action, i) => (
               <Link 
                 key={i}
@@ -176,7 +170,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="divide-y divide-card-border max-h-[450px] overflow-y-auto">
             {logs.length > 0 ? logs.map((log) => (
-              <div key={log.id} className="p-4 hover:bg-sidebar-accent/50 transition-colors flex items-center gap-4">
+              <div key={log.log_id} className="p-4 hover:bg-sidebar-accent/50 transition-colors flex items-center gap-4">
                 <div className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 border",
                   log.user_role === 'ADMIN' ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" : "bg-primary/10 text-primary border-primary/20"

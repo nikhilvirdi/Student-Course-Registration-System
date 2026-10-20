@@ -9,19 +9,19 @@ import {
   Activity, 
   Settings, 
   Users, 
-  LogOut,
   ShieldCheck,
-  Plus,
   Award,
   ChevronRight,
-  Database
+  BarChart3,
+  Folder,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 
 const adminNavItems = [
-  { name: 'Console Home', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Console Home', href: '/dashboard/admin', icon: LayoutDashboard },
   { 
     group: 'Management',
     items: [
@@ -34,21 +34,19 @@ const adminNavItems = [
   { 
     group: 'Operations',
     items: [
+      { name: 'Analytics', href: '/dashboard/admin/analytics', icon: BarChart3 },
+      { name: 'Documents', href: '/dashboard/admin/documents', icon: Folder },
+      { name: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell },
       { name: 'Audit Logs', href: '/dashboard/admin/activity', icon: Activity },
-      { name: 'System Stats', href: '/dashboard/admin/stats', icon: Database },
     ]
   }
 ];
 
 export default function AdminSidebar({ isOpen, setIsOpen }) {
   const pathname = usePathname();
-  const { user, logout } = useApp();
+  const { user, switchRole } = useApp();
   const router = useRouter();
 
-  const handleLogout = () => {
-    logout();
-    router.push('/auth/login');
-  };
 
   if (!user) return null;
 
@@ -64,11 +62,11 @@ export default function AdminSidebar({ isOpen, setIsOpen }) {
 
       {/* Sidebar container */}
       <aside className={cn(
-        "fixed lg:sticky top-0 left-0 z-50 h-screen w-72 bg-[#0f172a] text-slate-300 border-r border-slate-800 transition-transform duration-300 ease-in-out flex flex-col",
+        "fixed lg:sticky top-0 left-0 z-50 h-screen w-72 bg-[#0f172a] dark:bg-[#0a0a0a] text-slate-300 dark:text-neutral-400 border-r border-slate-800 dark:border-neutral-800 transition-transform duration-300 ease-in-out flex flex-col",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         {/* Logo area */}
-        <div className="h-20 flex items-center px-8 border-b border-slate-800/50">
+        <div className="h-20 flex items-center px-8 border-b border-slate-800/50 dark:border-neutral-800/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 rotate-3 group-hover:rotate-0 transition-transform">
               <ShieldCheck className="text-white w-6 h-6" />
@@ -85,15 +83,15 @@ export default function AdminSidebar({ isOpen, setIsOpen }) {
           {adminNavItems.map((group, idx) => (
             <div key={idx} className="space-y-2">
               {group.group && (
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-4 mb-3">
+                <div className="text-[10px] font-black text-slate-500 dark:text-neutral-600 uppercase tracking-[0.2em] px-4 mb-3">
                   {group.group}
                 </div>
               )}
               
               <div className="space-y-1">
                 {(group.items || [group]).map((item) => {
-                  const isActive = item.href === '/dashboard' 
-                    ? pathname === '/dashboard' || pathname === '/dashboard/'
+                  const isActive = item.href === '/dashboard/admin' 
+                    ? pathname === '/dashboard/admin' || pathname === '/dashboard/admin/'
                     : pathname === item.href || pathname?.startsWith(`${item.href}/`);
                     
                   return (
@@ -104,13 +102,13 @@ export default function AdminSidebar({ isOpen, setIsOpen }) {
                         "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all group relative",
                         isActive 
                           ? "bg-indigo-600/10 text-white shadow-sm" 
-                          : "hover:bg-slate-800/50 hover:text-white"
+                          : "hover:bg-slate-800/50 dark:hover:bg-neutral-800/50 hover:text-white"
                       )}
                     >
                       {isActive && (
                         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-500 rounded-r-full" />
                       )}
-                      <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300")} />
+                      <item.icon className={cn("w-5 h-5 transition-colors", isActive ? "text-indigo-400" : "text-slate-500 dark:text-neutral-500 group-hover:text-slate-300 dark:group-hover:text-neutral-300")} />
                       {item.name}
                       {isActive && <ChevronRight className="w-4 h-4 ml-auto text-indigo-400" />}
                     </Link>
@@ -122,16 +120,16 @@ export default function AdminSidebar({ isOpen, setIsOpen }) {
         </nav>
 
         {/* Bottom Section */}
-        <div className="p-6 border-t border-slate-800/50 bg-slate-900/50">
-          <Link href="/dashboard/settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-slate-800/50 transition-all mb-4 group">
-            <Settings className="w-5 h-5 text-slate-500 group-hover:text-slate-300" />
+        <div className="p-6 border-t border-slate-800/50 dark:border-neutral-800/50 bg-slate-900/50 dark:bg-neutral-950/50">
+          <Link href="/dashboard/admin/settings" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-slate-800/50 dark:hover:bg-neutral-800/50 transition-all mb-4 group">
+            <Settings className="w-5 h-5 text-slate-500 dark:text-neutral-500 group-hover:text-slate-300 dark:group-hover:text-neutral-300" />
             Settings
           </Link>
 
           {/* User Profile Section */}
-          <div className="flex items-center gap-3 px-2 py-3 rounded-2xl bg-slate-800/30 border border-slate-700/30 mb-4">
+          <div className="flex items-center gap-3 px-2 py-3 rounded-2xl bg-slate-800/30 dark:bg-neutral-800/30 border border-slate-700/30 dark:border-neutral-700/30 mb-4">
             <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-xs">
-              {user.firstName[0]}{user.lastName[0]}
+              {user.firstName?.[0]}{user.lastName?.[0]}
             </div>
             <div className="flex-1 overflow-hidden">
               <p className="text-xs font-bold text-white truncate">{user.firstName} {user.lastName}</p>
@@ -140,11 +138,18 @@ export default function AdminSidebar({ isOpen, setIsOpen }) {
           </div>
 
           <button 
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-400/10 transition-colors border border-transparent hover:border-red-400/20"
+            onClick={() => {
+              switchRole('STUDENT');
+              router.push('/dashboard');
+            }}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold text-teal-300 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 transition-all"
+            title="Switch demo identity to Student"
           >
-            <LogOut className="w-5 h-5" />
-            Logout Session
+            <span className="flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-teal-400" />
+              Switch to Student View
+            </span>
+            <span className="text-[9px] font-black uppercase tracking-widest bg-teal-500 text-slate-950 px-1.5 py-0.5 rounded">DEV</span>
           </button>
         </div>
       </aside>

@@ -227,11 +227,11 @@ export default function TasksPage() {
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
                         <span className={cn(
-                          (task.dueDate?.includes('Today') || task.dueDate?.includes('Tomorrow')) && !task.completed 
+                          (String(task.dueDate || task.due_date || '').includes('Today') || String(task.dueDate || task.due_date || '').includes('Tomorrow')) && !task.completed 
                             ? "text-amber-500 font-medium" 
                             : ""
                         )}>
-                          {task.dueDate}
+                          {task.dueDate || task.due_date || 'No deadline'}
                         </span>
                       </div>
                     </div>

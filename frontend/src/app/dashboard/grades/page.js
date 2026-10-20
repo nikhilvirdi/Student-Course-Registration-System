@@ -27,9 +27,13 @@ export default function StudentGradesPage() {
         if (gradesRes.success) {
           setGrades(gradesRes.data);
         }
-        if (gpaRes.success) {
-          setGpaData(gpaRes.data);
+        if (gpaRes.success && gpaRes.data) {
+          setGpaData({
+            gpa: gpaRes.data.gpa || '0.00',
+            totalCredits: gpaRes.data.total_credits ?? gpaRes.data.totalCredits ?? 0
+          });
         }
+
       } catch (error) {
         toast({ title: 'Error', description: 'Failed to load grades.', type: 'error' });
       } finally {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Award, BookOpen, User, CheckCircle, Search } from 'lucide-react';
+import { Award, User, CheckCircle, Search, Edit2, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { cn, apiFetch } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
@@ -17,18 +17,17 @@ export default function AdminGradesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [submitting, setSubmitting] = useState(null);
 
-  if (user?.role !== 'ADMIN') {
-    return <div className="p-6 text-red-500 font-bold text-center">Access Denied. Admins only.</div>;
-  }
-
+  // Hooks must be called before any early returns
   useEffect(() => {
-    fetchEnrollments();
-  }, [token]);
+    if (user?.role === 'ADMIN' && token) {
+      fetchEnrollments();
+    }
+  }, [token, user]);
 
   const fetchEnrollments = async () => {
     try {
       setLoading(true);
-      const res = await apiFetch('/admin/enrollments');
+      const res = await apiFetch('/admin/enrollments', { token });
       if (res.success) {
         setEnrollments(res.data);
       }
@@ -58,7 +57,6 @@ export default function AdminGradesPage() {
 
       if (res.success) {
         toast({ title: 'Success', description: 'Grade assigned successfully.', type: 'success' });
-        // Update local state to reflect the new grade and COMPLETED status
         setEnrollments(prev => prev.map(e => 
           e.enrollment_id === enrollmentId 
             ? { ...e, status: 'COMPLETED', grade: res.data }
@@ -71,6 +69,40 @@ export default function AdminGradesPage() {
       setSubmitting(null);
     }
   };
+
+  const handleUpdateGrade = async (gradeId, marks) => {
+    if (marks < 0 || marks > 100 || isNaN(marks)) {
+      toast({ title: 'Invalid Marks', description: 'Marks must be between 0 and 100.', type: 'error' });
+      return;
+    }
+
+    try {
+      setSubmitting(gradeId);
+      const res = await apiFetch(`/grades/${gradeId}`, {
+        method: 'PUT',
+        token,
+        body: { marks_obtained: parseFloat(marks) }
+      });
+
+      if (res.success) {
+        toast({ title: 'Success', description: 'Grade updated successfully.', type: 'success' });
+        setEnrollments(prev => prev.map(e => 
+          e.grade?.grade_id === gradeId 
+            ? { ...e, grade: res.data }
+            : e
+        ));
+      }
+    } catch (error) {
+      toast({ title: 'Update Failed', description: error.message, type: 'error' });
+    } finally {
+      setSubmitting(null);
+    }
+  };
+
+  // Role guard (after hooks)
+  if (user?.role !== 'ADMIN') {
+    return <div className="p-6 text-red-500 font-bold text-center">Access Denied. Admins only.</div>;
+  }
 
   const filteredEnrollments = enrollments.filter(e => {
     if (!searchQuery) return true;
@@ -87,7 +119,7 @@ export default function AdminGradesPage() {
       <PageHeader 
         icon={Award}
         title="Manage Grades"
-        description="Assign marks and compute grades for student enrollments."
+        description="Assign marks and compute grades for student enrollments. Override existing grades when needed."
       />
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-card border border-card-border p-4 rounded-xl shadow-sm">
@@ -123,7 +155,8 @@ export default function AdminGradesPage() {
                     key={e.enrollment_id} 
                     enrollment={e} 
                     onAssign={handleAssignGrade}
-                    submitting={submitting === e.enrollment_id}
+                    onUpdate={handleUpdateGrade}
+                    submitting={submitting === e.enrollment_id || submitting === e.grade?.grade_id}
                   />
                 ))}
               </tbody>
@@ -141,11 +174,23 @@ export default function AdminGradesPage() {
   );
 }
 
-function GradeRow({ enrollment, onAssign, submitting }) {
+function GradeRow({ enrollment, onAssign, onUpdate, submitting }) {
   const [inputMarks, setInputMarks] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editMarks, setEditMarks] = useState('');
   
   const isCompleted = enrollment.status === 'COMPLETED' || enrollment.grade;
   const grade = enrollment.grade;
+
+  const startEdit = () => {
+    setEditMarks(grade?.marks_obtained?.toString() || '');
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditMarks('');
+  };
 
   return (
     <tr className="border-b border-card-border hover:bg-sidebar-accent/30 transition-colors">
@@ -171,20 +216,31 @@ function GradeRow({ enrollment, onAssign, submitting }) {
         </span>
       </td>
       <td className="px-6 py-4 text-center">
-        {isCompleted && grade ? (
+        {isCompleted && grade && !isEditing ? (
           <div className="flex items-center justify-center gap-3">
             <span className="font-medium text-foreground">{grade.marks_obtained}</span>
             <span className={cn(
               "px-2 py-0.5 rounded text-xs font-bold",
-              grade.grade_letter === 'A' ? "bg-green-500/10 text-green-500" :
-              grade.grade_letter === 'B' ? "bg-blue-500/10 text-blue-500" :
+              grade.grade_letter === 'O' || grade.grade_letter === 'A+' ? "bg-green-500/10 text-green-500" :
+              grade.grade_letter === 'A' ? "bg-emerald-500/10 text-emerald-500" :
+              grade.grade_letter === 'B+' || grade.grade_letter === 'B' ? "bg-blue-500/10 text-blue-500" :
               grade.grade_letter === 'C' ? "bg-yellow-500/10 text-yellow-500" :
-              grade.grade_letter === 'D' ? "bg-orange-500/10 text-orange-500" :
               "bg-red-500/10 text-red-500"
             )}>
               {grade.grade_letter}
             </span>
           </div>
+        ) : isEditing ? (
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={editMarks}
+            onChange={(e) => setEditMarks(e.target.value)}
+            placeholder="0-100"
+            className="w-20 px-2 py-1 bg-background border border-primary/50 rounded-md text-sm focus:outline-none text-center"
+            autoFocus
+          />
         ) : (
           <input
             type="number"
@@ -199,11 +255,33 @@ function GradeRow({ enrollment, onAssign, submitting }) {
         )}
       </td>
       <td className="px-6 py-4 text-right">
-        {isCompleted ? (
-          <span className="inline-flex items-center justify-end gap-1 text-xs font-medium text-sidebar-fg w-full">
-            <CheckCircle className="w-4 h-4 text-green-500" />
-            Graded
-          </span>
+        {isEditing ? (
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => { onUpdate(grade.grade_id, editMarks); cancelEdit(); }}
+              disabled={submitting || !editMarks}
+              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {submitting ? 'Saving...' : 'Save'}
+            </button>
+            <button onClick={cancelEdit} className="p-1.5 hover:bg-sidebar-accent rounded-md text-sidebar-fg">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : isCompleted ? (
+          <div className="flex items-center justify-end gap-2">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-sidebar-fg">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Graded
+            </span>
+            <button 
+              onClick={startEdit}
+              className="p-1.5 hover:bg-sidebar-accent rounded-md text-sidebar-fg hover:text-primary transition-colors"
+              title="Edit grade"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+          </div>
         ) : enrollment.status === 'DROPPED' ? (
           <span className="text-xs text-sidebar-fg italic">Dropped</span>
         ) : (

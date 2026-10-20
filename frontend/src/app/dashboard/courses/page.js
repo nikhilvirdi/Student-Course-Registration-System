@@ -11,8 +11,9 @@ import SearchInput from '@/components/ui/SearchInput';
 import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function CoursesPage() {
-  const { courses, enrollCourse } = useApp();
+  const { courses, enrollCourse, dropCourse } = useApp();
   const { toast } = useToast();
+
   const [activeTab, setActiveTab] = useState('All Courses');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -171,12 +172,24 @@ export default function CoursesPage() {
                     Enroll
                   </button>
                 ) : (
-                  <button className="flex-1 py-2 bg-foreground text-background hover:bg-foreground/90 rounded-lg text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm">
-                    Launch
+                  <button 
+                    onClick={async () => {
+                      if (!confirm(`Are you sure you want to drop ${course.name}?`)) return;
+                      try {
+                        await dropCourse(course.id);
+                        toast({ title: 'Course Dropped', description: `Dropped ${course.name}`, type: 'info' });
+                      } catch (err) {
+                        toast({ title: 'Drop Failed', description: err.message || 'Failed to drop course', type: 'error' });
+                      }
+                    }}
+                    className="flex-1 py-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+                  >
+                    Drop Course
                   </button>
                 )}
               </div>
             </div>
+
           ))}
         </div>
       ) : (

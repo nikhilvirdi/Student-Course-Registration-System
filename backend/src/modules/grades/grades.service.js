@@ -21,24 +21,14 @@ const assignGrade = async (data) => {
   }
 
   // 10-Point CGPA Architecture
-  let grade_letter = 'F';
-  let grade_points = 0.0;
-  const marks = parseFloat(marks_obtained);
-
-  if (marks >= 90) { grade_letter = 'O'; grade_points = 10.0; }
-  else if (marks >= 80) { grade_letter = 'A+'; grade_points = 9.0; }
-  else if (marks >= 70) { grade_letter = 'A'; grade_points = 8.0; }
-  else if (marks >= 60) { grade_letter = 'B+'; grade_points = 7.0; }
-  else if (marks >= 50) { grade_letter = 'B'; grade_points = 6.0; }
-  else if (marks >= 40) { grade_letter = 'C'; grade_points = 5.0; }
-  else { grade_letter = 'F'; grade_points = 0.0; }
+  const { grade_letter, grade_points } = computeGrade(marks_obtained);
 
   // Atomically create grade and update enrollment status
   return await prisma.$transaction(async (tx) => {
     const grade = await tx.grade.create({
       data: {
         enrollment_id,
-        marks_obtained: marks,
+        marks_obtained: parseFloat(marks_obtained),
         grade_letter,
         grade_points,
       }
@@ -50,6 +40,27 @@ const assignGrade = async (data) => {
     });
 
     return grade;
+  });
+};
+
+const updateGrade = async (gradeId, marks_obtained) => {
+  const existingGrade = await prisma.grade.findUnique({
+    where: { grade_id: gradeId }
+  });
+
+  if (!existingGrade) {
+    throw new Error('Grade not found');
+  }
+
+  const { grade_letter, grade_points } = computeGrade(marks_obtained);
+
+  return await prisma.grade.update({
+    where: { grade_id: gradeId },
+    data: {
+      marks_obtained: parseFloat(marks_obtained),
+      grade_letter,
+      grade_points,
+    }
   });
 };
 
@@ -112,8 +123,26 @@ const getGPA = async (student_id) => {
   };
 };
 
+// Helper: Compute grade letter and points from marks
+function computeGrade(marks_obtained) {
+  let grade_letter = 'F';
+  let grade_points = 0.0;
+  const marks = parseFloat(marks_obtained);
+
+  if (marks >= 90) { grade_letter = 'O'; grade_points = 10.0; }
+  else if (marks >= 80) { grade_letter = 'A+'; grade_points = 9.0; }
+  else if (marks >= 70) { grade_letter = 'A'; grade_points = 8.0; }
+  else if (marks >= 60) { grade_letter = 'B+'; grade_points = 7.0; }
+  else if (marks >= 50) { grade_letter = 'B'; grade_points = 6.0; }
+  else if (marks >= 40) { grade_letter = 'C'; grade_points = 5.0; }
+  else { grade_letter = 'F'; grade_points = 0.0; }
+
+  return { grade_letter, grade_points };
+}
+
 module.exports = {
   assignGrade,
+  updateGrade,
   getMyGrades,
   getGPA
 };

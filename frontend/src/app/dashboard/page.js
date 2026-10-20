@@ -187,12 +187,13 @@ export default function DashboardPage() {
                       {task.title}
                     </h4>
                     <p className="text-xs text-sidebar-fg mt-1 flex items-center gap-2">
-                      <span className="font-medium text-primary">{task.course || 'General'}</span>
+                      <span className="font-medium text-primary">{task.category || task.course || 'General'}</span>
                       <span>•</span>
-                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {task.date || 'Soon'}</span>
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {task.due_date || task.dueDate || task.date || 'Soon'}</span>
                     </p>
                   </div>
                 </div>
+
               )) : (
                 <div className="py-8 text-center text-sidebar-fg italic text-sm">
                   All caught up! No pending tasks.

@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../config/prisma');
+
 
 exports.getAllDepartments = async () => {
   return await prisma.department.findMany({

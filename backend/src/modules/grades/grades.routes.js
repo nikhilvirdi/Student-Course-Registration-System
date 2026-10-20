@@ -6,6 +6,7 @@ const roleMiddleware = require('../../middleware/role.middleware');
 
 // Admin only routes
 router.post('/', authMiddleware, roleMiddleware(['ADMIN']), gradesController.assignGrade);
+router.put('/:id', authMiddleware, roleMiddleware(['ADMIN']), gradesController.updateGrade);
 router.get('/student/:id', authMiddleware, roleMiddleware(['ADMIN']), gradesController.getStudentGrades);
 
 // Student only routes

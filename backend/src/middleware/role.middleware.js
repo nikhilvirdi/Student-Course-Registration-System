@@ -1,13 +1,12 @@
-const roleMiddleware = (allowedRoles) => {
+/**
+ * Role middleware: In unauthenticated development mode, strict role-authorization
+ * checks are bypassed to allow testing both student and admin views freely.
+ */
+const roleMiddleware = () => {
   return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `Access denied. Requires one of the following roles: ${allowedRoles.join(', ')}`
-      });
-    }
     next();
   };
 };
 
 module.exports = roleMiddleware;
+

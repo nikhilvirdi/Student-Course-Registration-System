@@ -85,16 +85,16 @@ export function userInitials(user) {
 const API_BASE = 'http://localhost:5000/api';
 
 /**
- * Typed API fetch with automatic auth header injection.
- * Returns parsed JSON data or throws an Error with the server message.
- *
- * Usage:
- *   const data = await apiFetch('/courses', { token });
- *   const data = await apiFetch('/auth/profile', { method: 'PATCH', token, body: { name } });
+ * Typed API fetch for unauthenticated development mode.
+ * Automatically injects the active demo role header ('STUDENT' or 'ADMIN')
+ * so the backend identifies the demo user context without tokens.
  */
-export async function apiFetch(path, { method = 'GET', token, body } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+export async function apiFetch(path, { method = 'GET', token, body, role } = {}) {
+  const activeRole = role || (typeof window !== 'undefined' ? localStorage.getItem('scrs_demo_role') || 'STUDENT' : 'STUDENT');
+  const headers = { 
+    'Content-Type': 'application/json',
+    'x-demo-role': activeRole,
+  };
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,
@@ -106,5 +106,22 @@ export async function apiFetch(path, { method = 'GET', token, body } = {}) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || `Request failed: ${res.status}`);
   return data;
+}
+
+
+// ---------------------------------------------------------------------------
+// Date formatting
+// ---------------------------------------------------------------------------
+
+/** Format an ISO date string into a human-readable short form. */
+export function formatDate(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 

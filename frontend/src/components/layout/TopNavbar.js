@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, Search, Bell, X, Moon, Sun, LogOut, User, Settings, CheckCircle2, FileText, Layout, CheckSquare } from 'lucide-react';
+import { Menu, Search, Bell, X, Moon, Sun, User, Settings, CheckCircle2, FileText, Layout, CheckSquare, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useEffect, useState, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
@@ -15,7 +15,8 @@ export default function TopNavbar({ onMenuClick }) {
     markAllNotificationsRead,
     searchQuery,
     setSearchQuery,
-    searchResults
+    searchResults,
+    switchRole
   } = useApp();
   
   const [mounted, setMounted] = useState(false);
@@ -32,12 +33,8 @@ export default function TopNavbar({ onMenuClick }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleLogout = () => {
-    // Mock logout
-    router.push('/');
-  };
-
   const clearSearch = () => setSearchQuery('');
+
 
   return (
     <header className="h-16 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between px-4 lg:px-8">
@@ -204,6 +201,23 @@ export default function TopNavbar({ onMenuClick }) {
           )}
         </div>
 
+        {/* Unauthenticated Dev Mode Badge & Role Switcher */}
+        <div className="flex items-center">
+          <button 
+            onClick={() => {
+              switchRole('ADMIN');
+              router.push('/dashboard/admin');
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all"
+            title="Click to switch to Admin Console (Unauthenticated Dev Mode)"
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="hidden sm:inline">DEV:</span>
+            <span>Student Mode</span>
+            <span className="underline ml-1 font-normal opacity-80">Switch to Admin →</span>
+          </button>
+        </div>
+
         <div className="h-8 w-px bg-border mx-1"></div>
 
         <div className="relative">
@@ -245,11 +259,14 @@ export default function TopNavbar({ onMenuClick }) {
               </div>
               <div className="p-1.5 border-t border-border">
                 <button 
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded-lg transition-colors text-left"
+                  onClick={() => {
+                    switchRole('ADMIN');
+                    router.push('/dashboard/admin');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors text-left font-medium"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Log out
+                  <Users className="w-4 h-4" />
+                  Switch to Admin View
                 </button>
               </div>
             </div>
@@ -259,3 +276,4 @@ export default function TopNavbar({ onMenuClick }) {
     </header>
   );
 }
+

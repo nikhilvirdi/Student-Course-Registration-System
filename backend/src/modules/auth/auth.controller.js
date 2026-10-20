@@ -61,7 +61,11 @@ const getMe = async (req, res, next) => {
     const user = await authService.getMe(req.user.id, req.user.role);
     res.status(200).json({
       success: true,
-      data: user
+      data: {
+        ...user,
+        id: req.user.id,
+        role: req.user.role
+      }
     });
   } catch (error) {
     next(error);

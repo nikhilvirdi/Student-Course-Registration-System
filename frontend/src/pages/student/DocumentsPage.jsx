@@ -1,16 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   File, 
-  Folder, 
   Download, 
-  MoreVertical, 
   UploadCloud, 
-  Filter, 
   FileText, 
   Image as ImageIcon, 
   FileSpreadsheet,
   Trash2,
-  Code
+  Code,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/lib/utils';
@@ -20,62 +19,91 @@ import PageHeader from '@/components/ui/PageHeader';
 import FilterTabs from '@/components/ui/FilterTabs';
 import SearchInput from '@/components/ui/SearchInput';
 
-const getDocCategories = (docs) => {
-  const cats = {};
-  docs.forEach(d => {
-    const cat = d.type || 'Other';
-    if (!cats[cat]) cats[cat] = { count: 0, totalSize: 0 };
-    cats[cat].count++;
-  });
-  return Object.entries(cats).map(([name, data], i) => ({
-    id: i + 1,
-    name: `${name} Files`,
-    files: data.count,
-    size: 'Auto',
-  }));
-};
-
 export default function DocumentsPage() {
   const { documents, uploadDocument, deleteDocument } = useApp();
   const { toast } = useToast();
+  const fileInputRef = useRef(null);
+
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('My Files');
+  const [activeTab, setActiveTab] = useState('All');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadForm, setUploadForm] = useState({ name: '', type: 'PDF' });
+  const [uploading, setUploading] = useState(false);
 
   const tabs = [
-    { id: 'Recent', label: 'Recent' },
-    { id: 'My Files', label: 'My Files' },
-    { id: 'Shared', label: 'Shared' },
-    { id: 'Archived', label: 'Archived' },
+    { id: 'All', label: 'All Files' },
+    { id: 'PDF', label: 'PDFs' },
+    { id: 'Document', label: 'Docs' },
+    { id: 'Image', label: 'Images' },
+    { id: 'Other', label: 'Other' },
   ];
 
   const filteredDocuments = documents.filter(doc => {
+    if (activeTab !== 'All' && doc.type?.toUpperCase() !== activeTab.toUpperCase()) return false;
     if (searchQuery && !doc.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
-  const [uploadForm, setUploadForm] = useState({ name: '', type: 'pdf' });
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const folders = getDocCategories(documents);
+    setSelectedFile(file);
+    let inferredType = 'Other';
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') inferredType = 'PDF';
+    else if (['doc', 'docx'].includes(ext)) inferredType = 'Document';
+    else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) inferredType = 'Image';
+    else if (['xls', 'xlsx', 'csv'].includes(ext)) inferredType = 'Sheet';
+    else if (['js', 'sql', 'py', 'java', 'html', 'css'].includes(ext)) inferredType = 'Code';
 
-  const handleUpload = async () => {
-    if (!uploadForm.name.trim()) {
-      toast({ title: 'Error', description: 'File name is required', type: 'error' });
+    setUploadForm({
+      name: file.name,
+      type: inferredType,
+    });
+  };
+
+  const handleUploadSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedFile && !uploadForm.name.trim()) {
+      toast({ title: 'Error', description: 'Please choose a file to upload', type: 'error' });
       return;
     }
+
+    setUploading(true);
     try {
-      await uploadDocument({
-        name: uploadForm.name,
-        type: uploadForm.type,
-        size: 'N/A',
-        url: '',
-      });
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
+      formData.append('name', uploadForm.name.trim() || selectedFile?.name || 'Document');
+      formData.append('type', uploadForm.type);
+
+      await uploadDocument(formData);
       setIsUploadModalOpen(false);
-      setUploadForm({ name: '', type: 'pdf' });
-      toast({ title: 'Document uploaded successfully', type: 'success' });
+      setSelectedFile(null);
+      setUploadForm({ name: '', type: 'PDF' });
+      toast({ title: 'Upload Complete', description: 'File uploaded and saved successfully', type: 'success' });
     } catch (err) {
-      toast({ title: 'Warning', description: 'Saved locally (backend sync failed)', type: 'warning' });
-      setIsUploadModalOpen(false);
+      toast({ title: 'Upload Failed', description: err.message || 'Error uploading file', type: 'error' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDownload = (doc) => {
+    const downloadUrl = `http://localhost:5000/api/documents/${doc.id}/download`;
+    window.open(downloadUrl, '_blank');
+  };
+
+  const handleDelete = async (doc) => {
+    if (!confirm(`Are you sure you want to delete ${doc.name}?`)) return;
+    try {
+      await deleteDocument(doc.id);
+      toast({ title: 'File Deleted', description: `${doc.name} was removed`, type: 'success' });
+    } catch (err) {
+      toast({ title: 'Delete Failed', description: err.message || 'Failed to delete file', type: 'error' });
     }
   };
 
@@ -83,7 +111,8 @@ export default function DocumentsPage() {
     switch(type?.toLowerCase()) {
       case 'pdf': return <FileText className="w-8 h-8 text-red-500" />;
       case 'doc': 
-      case 'docx': return <FileText className="w-8 h-8 text-blue-500" />;
+      case 'docx':
+      case 'document': return <FileText className="w-8 h-8 text-blue-500" />;
       case 'image': 
       case 'png':
       case 'jpg': return <ImageIcon className="w-8 h-8 text-purple-500" />;
@@ -99,11 +128,15 @@ export default function DocumentsPage() {
     <div className="space-y-6">
       <PageHeader 
         icon={File}
-        title="Documents"
-        description="Manage your academic files and submissions."
+        title="Documents & Workspace"
+        description="Upload course assignments, view resources, and download documents."
         action={
           <button 
-            onClick={() => setIsUploadModalOpen(true)}
+            onClick={() => {
+              setSelectedFile(null);
+              setUploadForm({ name: '', type: 'PDF' });
+              setIsUploadModalOpen(true);
+            }}
             className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-all flex items-center gap-2 active:scale-95 shadow-sm"
           >
             <UploadCloud className="w-4 h-4" />
@@ -112,185 +145,165 @@ export default function DocumentsPage() {
         }
       />
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <FilterTabs 
           tabs={tabs}
           active={activeTab}
           onChange={setActiveTab}
         />
         
-        <div className="flex items-center gap-3">
-          <SearchInput 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search files..."
-            className="w-full sm:w-64"
-          />
-          <button className="p-2 bg-card border border-card-border rounded-lg text-sidebar-fg hover:text-foreground hover:bg-sidebar-accent transition-colors">
-            <Filter className="w-4 h-4" />
-          </button>
-        </div>
+        <SearchInput 
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search documents by name..."
+          className="w-full sm:w-64"
+        />
       </div>
 
-      {/* Folders */}
-      <div>
-        <h2 className="text-xs font-bold text-sidebar-fg uppercase tracking-widest mb-4 flex items-center gap-2">
-          Folders
-          <span className="h-px flex-1 bg-card-border" />
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-          {folders.map((folder) => (
-            <div key={folder.id} className="bg-card border border-card-border rounded-xl p-4 hover:border-primary/50 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex items-start gap-3 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-              <Folder className="w-10 h-10 text-primary/80 group-hover:text-primary transition-all group-hover:scale-110 flex-shrink-0" fill="currentColor" fillOpacity={0.1} />
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-foreground truncate group-hover:text-primary transition-colors">{folder.name}</h3>
-                <p className="text-[11px] text-sidebar-fg mt-1 uppercase font-semibold">{folder.files} files • {folder.size}</p>
-              </div>
-              <button className="text-sidebar-fg hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity p-1">
-                <MoreVertical className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Files List */}
-      <div>
-        <h2 className="text-xs font-bold text-sidebar-fg uppercase tracking-widest mb-4 flex items-center gap-2">
-          Recent Files
-          <span className="h-px flex-1 bg-card-border" />
-        </h2>
-        <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-[10px] text-sidebar-fg bg-sidebar-accent/30 uppercase font-bold tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Category</th>
-                  <th className="px-6 py-4">Size</th>
-                  <th className="px-6 py-4">Modified</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-card-border">
-                {filteredDocuments.length > 0 ? (
-                  filteredDocuments.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-sidebar-accent/20 transition-all duration-200 group cursor-pointer relative">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          <div className="group-hover:scale-110 transition-transform duration-300">
-                            {getFileIcon(doc.type)}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-foreground group-hover:text-primary transition-colors">{doc.name}</span>
-                            <span className="text-[10px] text-sidebar-fg uppercase font-bold tracking-tighter">{doc.type} File</span>
-                          </div>
+      <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-sidebar-accent/50 text-sidebar-fg">
+              <tr>
+                <th className="p-4 font-medium">Document Name</th>
+                <th className="p-4 font-medium">Type</th>
+                <th className="p-4 font-medium">Size</th>
+                <th className="p-4 font-medium">Date Uploaded</th>
+                <th className="p-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-card-border">
+              {filteredDocuments.length > 0 ? (
+                filteredDocuments.map((doc) => (
+                  <tr key={doc.id} className="hover:bg-sidebar-accent/30 transition-colors group">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-sidebar-accent rounded-lg shrink-0">
+                          {getFileIcon(doc.type)}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tight bg-sidebar-accent text-sidebar-fg border border-card-border group-hover:border-primary/30 transition-colors">
-                          {doc.category}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sidebar-fg font-medium group-hover:text-foreground transition-colors">{doc.size}</td>
-                      <td className="px-6 py-4 text-sidebar-fg font-medium group-hover:text-foreground transition-colors">{doc.modified || doc.date}</td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button className="p-2 text-sidebar-fg hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Download">
-                            <Download className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteDocument(doc.id);
-                              toast({ title: 'File deleted', type: 'success' });
-                            }}
-                            className="p-2 text-sidebar-fg hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" 
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          <button className="p-2 text-sidebar-fg hover:text-foreground hover:bg-sidebar-accent rounded-lg transition-colors">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground truncate max-w-md">{doc.name}</p>
+                          <span className="text-xs text-sidebar-fg">Available for download</span>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-20 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <File className="w-10 h-10 text-sidebar-fg/40 mb-3" />
-                        <p className="text-sidebar-fg font-medium">No documents found</p>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 bg-sidebar-accent rounded-md text-xs font-semibold text-sidebar-fg uppercase tracking-wide">
+                        {doc.type}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sidebar-fg text-xs font-medium">{doc.size || 'N/A'}</td>
+                    <td className="p-4 text-sidebar-fg text-xs">{doc.date || 'Recent'}</td>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => handleDownload(doc)}
+                          className="p-2 text-sidebar-fg hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" 
+                          title="Download File"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(doc)}
+                          className="p-2 text-sidebar-fg hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" 
+                          title="Delete File"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="p-16 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <File className="w-12 h-12 text-sidebar-fg/30 mb-3" />
+                      <p className="text-foreground font-semibold">No documents found</p>
+                      <p className="text-xs text-sidebar-fg mt-1">Upload course documents, assignments, or notes above.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
+      {/* Upload File Modal */}
       <Modal
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        onClose={() => !uploading && setIsUploadModalOpen(false)}
         title="Upload Document"
-        description="Select a file to upload to your workspace."
+        description="Select a local file to upload and save in SCRS."
         footer={
           <div className="flex gap-3">
             <button 
+              disabled={uploading}
               onClick={() => setIsUploadModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-sidebar-fg hover:text-foreground transition-colors"
+              className="px-4 py-2 text-sm font-medium text-sidebar-fg hover:text-foreground transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button 
-              onClick={handleUpload}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all active:scale-95 shadow-sm"
+              disabled={uploading}
+              onClick={handleUploadSubmit}
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all active:scale-95 shadow-sm disabled:opacity-50 flex items-center gap-2"
             >
-              Upload
+              <UploadCloud className="w-4 h-4" />
+              {uploading ? 'Uploading...' : 'Upload'}
             </button>
           </div>
         }
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-sidebar-fg uppercase tracking-wider mb-1.5">File Name</label>
-            <input
-              type="text"
-              placeholder="e.g., DBMS_Assignment_3.pdf"
-              value={uploadForm.name}
-              onChange={(e) => setUploadForm({...uploadForm, name: e.target.value})}
-              className="w-full px-4 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary transition-all"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-sidebar-fg uppercase tracking-wider mb-1.5">File Type</label>
-            <select
-              value={uploadForm.type}
-              onChange={(e) => setUploadForm({...uploadForm, type: e.target.value})}
-              className="w-full px-4 py-2 bg-background border border-card-border rounded-lg text-sm focus:outline-none focus:border-primary transition-all appearance-none"
-            >
-              {['pdf', 'doc', 'xlsx', 'image', 'code', 'sql', 'Other'].map(t => (
-                <option key={t} value={t}>{t.toUpperCase()}</option>
-              ))}
-            </select>
-          </div>
+        <form onSubmit={handleUploadSubmit} className="space-y-4">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
           <div 
-            onClick={handleUpload}
+            onClick={() => fileInputRef.current?.click()}
             className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-card-border rounded-2xl bg-sidebar-accent/20 hover:bg-sidebar-accent/40 hover:border-primary/50 transition-all cursor-pointer group"
           >
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
               <UploadCloud className="w-6 h-6 text-primary" />
             </div>
-            <p className="text-sm font-bold text-foreground">Click to upload</p>
-            <p className="text-[11px] text-sidebar-fg mt-1 uppercase font-bold tracking-widest">PDF, DOC, XLSX, IMG (max. 10MB)</p>
+            <p className="text-sm font-bold text-foreground">
+              {selectedFile ? selectedFile.name : 'Click to select file from device'}
+            </p>
+            <p className="text-[11px] text-sidebar-fg mt-1 uppercase font-bold tracking-widest">
+              {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Click to change` : 'PDF, DOC, DOCX, IMG, XLSX (max. 25MB)'}
+            </p>
           </div>
-        </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-sidebar-fg uppercase tracking-wider mb-1.5">Document Title</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g., CS101_Midterm_Review.pdf"
+              value={uploadForm.name}
+              onChange={(e) => setUploadForm({...uploadForm, name: e.target.value})}
+              className="w-full px-4 py-2 bg-background border border-card-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-sidebar-fg uppercase tracking-wider mb-1.5">Document Category</label>
+            <select
+              value={uploadForm.type}
+              onChange={(e) => setUploadForm({...uploadForm, type: e.target.value})}
+              className="w-full px-4 py-2 bg-background border border-card-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+            >
+              {['PDF', 'Document', 'Sheet', 'Image', 'Code', 'Other'].map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+        </form>
       </Modal>
     </div>
   );

@@ -10,6 +10,7 @@ router.use(roleMiddleware(['STUDENT', 'ADMIN']));
 router.get('/', tasksController.getTasks);
 router.post('/', tasksController.createTask);
 router.put('/:id', tasksController.updateTask);
+router.patch('/:id', tasksController.updateTask);
 router.delete('/:id', tasksController.deleteTask);
 
 module.exports = router;

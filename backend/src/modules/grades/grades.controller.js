@@ -1,9 +1,21 @@
 const gradesService = require('./grades.service');
 const auditService = require('../admin/audit.service');
 
+const getAllGrades = async (req, res, next) => {
+  try {
+    const grades = await gradesService.getAllGrades();
+    res.status(200).json({
+      success: true,
+      data: grades
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const assignGrade = async (req, res, next) => {
   try {
-    const { enrollment_id, marks_obtained } = req.body;
+    const { enrollment_id, marks_obtained, student_id, course_id } = req.body;
     const grade = await gradesService.assignGrade(req.body);
     
     // Log action
@@ -12,7 +24,7 @@ const assignGrade = async (req, res, next) => {
       user_name: req.user.name,
       user_role: req.user.role,
       action: 'ASSIGN_GRADE',
-      target: `Enrollment: ${enrollment_id}, Marks: ${marks_obtained}`,
+      target: `Enrollment: ${enrollment_id || `${student_id}→${course_id}`}, Marks: ${marks_obtained}`,
       type: 'system'
     });
 
@@ -22,7 +34,14 @@ const assignGrade = async (req, res, next) => {
       data: grade
     });
   } catch (error) {
-    if (error.message.includes('not found') || error.message.includes('Cannot assign') || error.message.includes('already been assigned')) {
+    if (
+      error.message.includes('not found') || 
+      error.message.includes('Cannot assign') || 
+      error.message.includes('already been assigned') ||
+      error.message.includes('Marks must be') ||
+      error.message.includes('required') ||
+      error.message.includes('not enrolled')
+    ) {
       return res.status(400).json({ success: false, message: error.message });
     }
     next(error);
@@ -34,7 +53,7 @@ const updateGrade = async (req, res, next) => {
     const { id } = req.params;
     const { marks_obtained } = req.body;
 
-    if (marks_obtained === undefined || marks_obtained === null) {
+    if (marks_obtained === undefined || marks_obtained === null || marks_obtained === '') {
       return res.status(400).json({ success: false, message: 'marks_obtained is required' });
     }
 
@@ -54,6 +73,37 @@ const updateGrade = async (req, res, next) => {
       success: true,
       message: 'Grade updated successfully',
       data: grade
+    });
+  } catch (error) {
+    if (error.message === 'Grade not found') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    if (error.message.includes('Marks must be') || error.message.includes('required')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const deleteGrade = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await gradesService.deleteGrade(id);
+
+    // Log action
+    await auditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'DELETE_GRADE',
+      target: `Grade: ${id}`,
+      type: 'system'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Grade reset successfully',
+      data: result
     });
   } catch (error) {
     if (error.message === 'Grade not found') {
@@ -104,8 +154,10 @@ const getStudentGrades = async (req, res, next) => {
 };
 
 module.exports = {
+  getAllGrades,
   assignGrade,
   updateGrade,
+  deleteGrade,
   getMyGrades,
   getGPA,
   getStudentGrades

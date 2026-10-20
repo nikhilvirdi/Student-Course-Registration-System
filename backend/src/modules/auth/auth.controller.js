@@ -74,11 +74,7 @@ const getMe = async (req, res, next) => {
 
 const updateProfile = async (req, res, next) => {
   try {
-    // Only students can update their profile via this route
-    if (req.user.role !== 'STUDENT') {
-      return res.status(403).json({ success: false, message: 'Forbidden: only students can use this endpoint' });
-    }
-    const updated = await authService.updateProfile(req.user.id, req.body);
+    const updated = await authService.updateProfile(req.user.id, req.body, req.user.role);
     
     // Log action
     await auditService.logAction({
@@ -96,16 +92,16 @@ const updateProfile = async (req, res, next) => {
       data: updated
     });
   } catch (error) {
+    if (error.message.includes('already in use') || error.message.includes('required')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     next(error);
   }
 };
 
 const updatePassword = async (req, res, next) => {
   try {
-    if (req.user.role !== 'STUDENT') {
-      return res.status(403).json({ success: false, message: 'Forbidden: only students can change passwords via this endpoint' });
-    }
-    await authService.updatePassword(req.user.id, req.body);
+    await authService.updatePassword(req.user.id, req.body, req.user.role);
     
     // Log action
     await auditService.logAction({
@@ -122,6 +118,9 @@ const updatePassword = async (req, res, next) => {
       message: 'Password updated successfully'
     });
   } catch (error) {
+    if (error.message.includes('incorrect') || error.message.includes('must be at least') || error.message.includes('required')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     next(error);
   }
 };

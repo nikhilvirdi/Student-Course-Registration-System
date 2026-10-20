@@ -86,31 +86,30 @@ export default function NotificationsPage() {
                     {notification.message}
                   </p>
                   
-                  {!notification.read && (
-                    <div className="mt-4 flex items-center gap-4">
-                      <button className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 px-3 py-1.5 rounded-md">
-                        View Details
-                      </button>
+                  <div className="mt-3 flex items-center gap-3">
+                    {!notification.read && (
                       <button 
                         onClick={() => markNotificationRead(notification.id)}
-                        className="text-xs font-semibold text-sidebar-fg hover:text-foreground transition-colors hover:bg-sidebar-accent px-3 py-1.5 rounded-md"
+                        className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors bg-primary/10 px-3 py-1.5 rounded-md"
                       >
                         Mark as read
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <button 
+                      onClick={() => deleteNotification(notification.id)}
+                      className="text-xs font-semibold text-sidebar-fg hover:text-red-500 transition-colors hover:bg-red-500/10 px-3 py-1.5 rounded-md flex items-center gap-1"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                
-                <button className="text-sidebar-fg hover:text-foreground transition-colors p-2 h-fit rounded-lg hover:bg-sidebar-accent opacity-0 group-hover:opacity-100 focus:opacity-100">
-                  <MoreHorizontal className="w-5 h-5" />
-                </button>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 text-sidebar-fg">
+          <div className="text-center py-16 text-sidebar-fg">
             <Bell className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>You have no notifications.</p>
+            <p className="text-sm font-medium">You have no notifications at this time.</p>
           </div>
         )}
       </div>

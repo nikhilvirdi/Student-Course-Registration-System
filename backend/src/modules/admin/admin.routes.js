@@ -23,8 +23,17 @@ router.get('/courses/:id/students', adminController.getCourseStudents);
 // GET /api/admin/students
 router.get('/students', adminController.getAllStudents);
 
+// POST /api/admin/students — create student
+router.post('/students', adminController.createStudent);
+
 // GET /api/admin/students/:id — single student detail
 router.get('/students/:id', adminController.getStudentDetail);
+
+// PUT /api/admin/students/:id — update student
+router.put('/students/:id', adminController.updateStudent);
+
+// DELETE /api/admin/students/:id — delete student
+router.delete('/students/:id', adminController.deleteStudent);
 
 // GET /api/admin/stats
 router.get('/stats', adminController.getAggregateStats);
@@ -40,5 +49,11 @@ router.get('/documents', adminController.getAllDocuments);
 
 // GET /api/admin/notifications — all notifications across students
 router.get('/notifications', adminController.getAllNotifications);
+
+// POST /api/admin/notifications — broadcast announcement
+router.post('/notifications', adminController.broadcastAnnouncement);
+
+// DELETE /api/admin/notifications/:id — delete notification
+router.delete('/notifications/:id', adminController.deleteAdminNotification);
 
 module.exports = router;

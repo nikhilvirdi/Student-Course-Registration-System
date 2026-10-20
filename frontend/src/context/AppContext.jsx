@@ -131,7 +131,9 @@ export function AppProvider({ children }) {
           assignments: [],
           available_seats: c.available_seats,
           max_seats: c.max_seats,
-          description: c.description
+          description: c.description,
+          department: c.department?.department_name || 'General',
+          prerequisites: c.prerequisites || [],
         }));
         setCourses(mappedCourses);
       } else {
@@ -222,18 +224,12 @@ export function AppProvider({ children }) {
 
   // User Actions
   const updateProfile = useCallback(async (updates) => {
-    try {
-      const data = await apiFetch('/auth/profile', {
-        method: 'PATCH',
-        body: updates
-      });
-      setUser(prev => prev ? ({ ...prev, ...data.data }) : null);
-      return data;
-    } catch (err) {
-      // Local fallback in dev mode if network issue
-      setUser(prev => prev ? ({ ...prev, ...updates }) : null);
-      return { success: true, data: updates };
-    }
+    const data = await apiFetch('/auth/profile', {
+      method: 'PATCH',
+      body: updates
+    });
+    setUser(prev => prev ? ({ ...prev, ...data.data }) : null);
+    return data;
   }, []);
 
   const updatePassword = useCallback(async (currentPassword, newPassword) => {
@@ -262,24 +258,24 @@ export function AppProvider({ children }) {
         method: 'POST',
         body: { course_id: courseId }
       });
-      setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: 'Enrolled' } : c));
+      await fetchCourses();
       return data;
     } catch (err) {
       throw new Error(err.message || 'Enrollment failed');
     }
-  }, []);
+  }, [fetchCourses]);
 
   const dropCourse = useCallback(async (courseId) => {
     try {
       const data = await apiFetch(`/enrollments/drop/${courseId}`, {
         method: 'DELETE',
       });
-      setCourses(prev => prev.map(c => c.id === courseId ? { ...c, status: 'Available' } : c));
+      await fetchCourses();
       return data;
     } catch (err) {
       throw new Error(err.message || 'Drop course failed');
     }
-  }, []);
+  }, [fetchCourses]);
 
   // Grade Actions
   const getMyGrades = useCallback(async () => {
@@ -321,6 +317,17 @@ export function AppProvider({ children }) {
       return data;
     } catch (err) {
       throw new Error(err.message || 'Failed to update grade');
+    }
+  }, []);
+
+  const deleteGrade = useCallback(async (gradeId) => {
+    try {
+      const data = await apiFetch(`/grades/${gradeId}`, {
+        method: 'DELETE',
+      });
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Failed to delete grade');
     }
   }, []);
 
@@ -368,70 +375,51 @@ export function AppProvider({ children }) {
 
   // Task Actions
   const addTask = useCallback(async (task) => {
-    try {
-      const data = await apiFetch('/tasks', {
-        method: 'POST',
-        body: {
-          title: task.title,
-          category: task.category || 'Other',
-          priority: task.priority || 'Medium',
-          due_date: task.due_date || task.dueDate || null,
-        }
-      });
-
-      if (data.success && data.data) {
-        const t = data.data;
-        setTasks(prev => [{
-          id: t.task_id,
-          title: t.title,
-          category: t.category,
-          priority: t.priority,
-          due_date: t.due_date,
-          dueDate: t.due_date,
-          completed: t.completed,
-          _backendId: t.task_id,
-        }, ...prev]);
+    const data = await apiFetch('/tasks', {
+      method: 'POST',
+      body: {
+        title: task.title,
+        category: task.category || 'Other',
+        priority: task.priority || 'Medium',
+        due_date: task.due_date || task.dueDate || null,
+        completed: Boolean(task.completed)
       }
+    });
 
-      return data;
-    } catch (err) {
-      const newTask = {
-        id: Date.now(),
-        completed: false,
-        priority: 'Medium',
-        due_date: task.due_date || task.dueDate,
-        dueDate: task.due_date || task.dueDate,
-        ...task
-      };
-      setTasks(prev => [newTask, ...prev]);
-      return { success: true, data: newTask };
+    if (data.success && data.data) {
+      const t = data.data;
+      setTasks(prev => [{
+        id: t.task_id,
+        title: t.title,
+        category: t.category,
+        priority: t.priority,
+        due_date: t.due_date,
+        dueDate: t.due_date,
+        completed: t.completed,
+        _backendId: t.task_id,
+      }, ...prev]);
     }
+
+    return data;
   }, []);
 
   const updateTask = useCallback(async (id, updates) => {
+    const backendId = tasks.find(t => t.id === id)?._backendId || id;
+    const res = await apiFetch(`/tasks/${backendId}`, {
+      method: 'PUT',
+      body: updates
+    });
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
-    try {
-      const backendId = tasks.find(t => t.id === id)?._backendId || id;
-      await apiFetch(`/tasks/${backendId}`, {
-        method: 'PUT',
-        body: updates
-      });
-    } catch (err) {
-      console.error('Failed to update task on backend:', err);
-    }
+    return res;
   }, [tasks]);
 
   const deleteTask = useCallback(async (id) => {
     const taskToDelete = tasks.find(t => t.id === id);
+    const backendId = taskToDelete?._backendId || id;
+    await apiFetch(`/tasks/${backendId}`, {
+      method: 'DELETE'
+    });
     setTasks(prev => prev.filter(t => t.id !== id));
-    try {
-      const backendId = taskToDelete?._backendId || id;
-      await apiFetch(`/tasks/${backendId}`, {
-        method: 'DELETE'
-      });
-    } catch (err) {
-      console.error('Failed to delete task on backend:', err);
-    }
   }, [tasks]);
 
   const toggleTask = useCallback(async (id) => {
@@ -439,17 +427,12 @@ export function AppProvider({ children }) {
     if (!task) return;
 
     const newState = !task.completed;
+    const backendId = task._backendId || id;
+    await apiFetch(`/tasks/${backendId}`, {
+      method: 'PUT',
+      body: { completed: newState }
+    });
     setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: newState } : t));
-
-    try {
-      const backendId = task._backendId || id;
-      await apiFetch(`/tasks/${backendId}`, {
-        method: 'PUT',
-        body: { completed: newState }
-      });
-    } catch (err) {
-      console.error('Failed to toggle task on backend:', err);
-    }
   }, [tasks]);
 
   // Notification Actions
@@ -491,8 +474,22 @@ export function AppProvider({ children }) {
 
   // Document Actions
   const uploadDocument = useCallback(async (doc) => {
-    try {
-      const data = await apiFetch('/documents', {
+    let res;
+    if (doc instanceof FormData) {
+      const activeRole = localStorage.getItem('scrs_demo_role') || 'STUDENT';
+      const response = await fetch('http://localhost:5000/api/documents', {
+        method: 'POST',
+        headers: {
+          'x-demo-role': activeRole,
+        },
+        body: doc,
+      });
+      res = await response.json();
+      if (!response.ok) {
+        throw new Error(res.message || 'Failed to upload document');
+      }
+    } else {
+      res = await apiFetch('/documents', {
         method: 'POST',
         body: {
           name: doc.name,
@@ -501,43 +498,31 @@ export function AppProvider({ children }) {
           url: doc.url || '',
         }
       });
-
-      if (data.success && data.data) {
-        const d = data.data;
-        setDocuments(prev => [{
-          id: d.document_id,
-          name: d.name,
-          type: d.type,
-          size: d.size,
-          url: d.url,
-          date: new Date(d.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          _backendId: d.document_id,
-        }, ...prev]);
-      }
-
-      return data;
-    } catch (err) {
-      const newDoc = {
-        id: Date.now(),
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        ...doc
-      };
-      setDocuments(prev => [newDoc, ...prev]);
-      return { success: true, data: newDoc };
     }
+
+    if (res.success && res.data) {
+      const d = res.data;
+      setDocuments(prev => [{
+        id: d.document_id,
+        name: d.name,
+        type: d.type,
+        size: d.size,
+        url: d.url,
+        date: new Date(d.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        _backendId: d.document_id,
+      }, ...prev]);
+    }
+
+    return res;
   }, []);
 
   const deleteDocument = useCallback(async (id) => {
     const docToDelete = documents.find(d => d.id === id);
+    const backendId = docToDelete?._backendId || id;
+    await apiFetch(`/documents/${backendId}`, {
+      method: 'DELETE'
+    });
     setDocuments(prev => prev.filter(d => d.id !== id));
-    try {
-      const backendId = docToDelete?._backendId || id;
-      await apiFetch(`/documents/${backendId}`, {
-        method: 'DELETE'
-      });
-    } catch (err) {
-      console.error('Failed to delete document:', err);
-    }
   }, [documents]);
 
   // Search Logic
@@ -592,6 +577,7 @@ export function AppProvider({ children }) {
     getMyGPA,
     assignGrade,
     updateGrade,
+    deleteGrade,
     getStudentGrades,
     getAllEnrollments,
     adminEnrollStudent,

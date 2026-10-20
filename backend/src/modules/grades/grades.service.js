@@ -1,34 +1,92 @@
 const prisma = require('../../config/prisma');
 
-const assignGrade = async (data) => {
-  const { enrollment_id, marks_obtained } = data;
+const getAllGrades = async () => {
+  return await prisma.grade.findMany({
+    include: {
+      enrollment: {
+        include: {
+          student: {
+            select: {
+              student_id: true,
+              name: true,
+              email: true,
+              semester: true,
+              department: { select: { department_name: true } }
+            }
+          },
+          course: {
+            select: {
+              course_id: true,
+              course_code: true,
+              course_name: true,
+              credits: true,
+              semester_label: true
+            }
+          }
+        }
+      }
+    },
+    orderBy: {
+      graded_at: 'desc'
+    }
+  });
+};
 
-  // Ensure enrollment exists and is ACTIVE
+const assignGrade = async (data) => {
+  let enrollment_id = data.enrollment_id;
+
+  // Support lookup by student_id and course_id
+  if (!enrollment_id && data.student_id && data.course_id) {
+    const enr = await prisma.enrollment.findUnique({
+      where: {
+        student_id_course_id: { student_id: data.student_id, course_id: data.course_id }
+      }
+    });
+    if (!enr) {
+      throw new Error('Student is not enrolled in this course');
+    }
+    enrollment_id = enr.enrollment_id;
+  }
+
+  if (!enrollment_id) {
+    throw new Error('Enrollment ID or both Student ID and Course ID are required');
+  }
+
+  // Ensure enrollment exists
   const enrollment = await prisma.enrollment.findUnique({
-    where: { enrollment_id }
+    where: { enrollment_id },
+    include: { grade: true }
   });
 
   if (!enrollment) {
     throw new Error('Enrollment not found');
   }
 
-  if (enrollment.status === 'COMPLETED') {
-    throw new Error('Grade has already been assigned for this enrollment');
-  }
-
   if (enrollment.status === 'DROPPED') {
     throw new Error('Cannot assign a grade to a dropped enrollment');
   }
 
-  // 10-Point CGPA Architecture
-  const { grade_letter, grade_points } = computeGrade(marks_obtained);
+  // Validate marks and compute 10-Point CGPA Architecture
+  const { grade_letter, grade_points } = computeGrade(data.marks_obtained);
 
-  // Atomically create grade and update enrollment status
+  // If grade already exists for this enrollment, update it safely (prevents duplicate key error)
+  if (enrollment.grade) {
+    return await prisma.grade.update({
+      where: { grade_id: enrollment.grade.grade_id },
+      data: {
+        marks_obtained: parseFloat(data.marks_obtained),
+        grade_letter,
+        grade_points,
+      }
+    });
+  }
+
+  // Atomically create grade and update enrollment status to COMPLETED
   return await prisma.$transaction(async (tx) => {
     const grade = await tx.grade.create({
       data: {
         enrollment_id,
-        marks_obtained: parseFloat(marks_obtained),
+        marks_obtained: parseFloat(data.marks_obtained),
         grade_letter,
         grade_points,
       }
@@ -61,6 +119,29 @@ const updateGrade = async (gradeId, marks_obtained) => {
       grade_letter,
       grade_points,
     }
+  });
+};
+
+const deleteGrade = async (gradeId) => {
+  const existingGrade = await prisma.grade.findUnique({
+    where: { grade_id: gradeId }
+  });
+
+  if (!existingGrade) {
+    throw new Error('Grade not found');
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    await tx.grade.delete({
+      where: { grade_id: gradeId }
+    });
+
+    await tx.enrollment.update({
+      where: { enrollment_id: existingGrade.enrollment_id },
+      data: { status: 'ACTIVE' }
+    });
+
+    return { message: 'Grade deleted successfully and enrollment status reverted to ACTIVE' };
   });
 };
 
@@ -125,9 +206,16 @@ const getGPA = async (student_id) => {
 
 // Helper: Compute grade letter and points from marks
 function computeGrade(marks_obtained) {
+  if (marks_obtained === undefined || marks_obtained === null || marks_obtained === '') {
+    throw new Error('Marks obtained is required');
+  }
+  const marks = parseFloat(marks_obtained);
+  if (isNaN(marks) || marks < 0 || marks > 100) {
+    throw new Error('Marks must be a valid number between 0 and 100');
+  }
+
   let grade_letter = 'F';
   let grade_points = 0.0;
-  const marks = parseFloat(marks_obtained);
 
   if (marks >= 90) { grade_letter = 'O'; grade_points = 10.0; }
   else if (marks >= 80) { grade_letter = 'A+'; grade_points = 9.0; }
@@ -141,8 +229,11 @@ function computeGrade(marks_obtained) {
 }
 
 module.exports = {
+  getAllGrades,
   assignGrade,
   updateGrade,
+  deleteGrade,
   getMyGrades,
-  getGPA
+  getGPA,
+  computeGrade,
 };

@@ -182,7 +182,10 @@ export default function DashboardPage() {
                     <p className="text-xs text-sidebar-fg mt-1 flex items-center gap-2">
                       <span className="font-medium text-primary">{task.category || task.course || 'General'}</span>
                       <span>•</span>
-                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {task.due_date || task.dueDate || task.date || 'Soon'}</span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> 
+                        {task.dueDate || (task.due_date ? new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Soon')}
+                      </span>
                     </p>
                   </div>
                 </div>

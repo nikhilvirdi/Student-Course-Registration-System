@@ -84,7 +84,7 @@ export default function TopNavbar({ onMenuClick }) {
                       {searchResults.courses.map(course => (
                         <button 
                           key={course.id}
-                          onClick={() => router.push(`/dashboard/courses`)}
+                          onClick={() => navigate('/dashboard/courses')}
                           className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-sidebar-accent rounded-lg transition-colors text-left"
                         >
                           <Layout className="w-4 h-4 text-primary" />
@@ -103,7 +103,7 @@ export default function TopNavbar({ onMenuClick }) {
                       {searchResults.tasks.map(task => (
                         <button 
                           key={task.id}
-                          onClick={() => router.push(`/dashboard/tasks`)}
+                          onClick={() => navigate('/dashboard/tasks')}
                           className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-sidebar-accent rounded-lg transition-colors text-left"
                         >
                           <CheckSquare className="w-4 h-4 text-primary" />
@@ -119,7 +119,7 @@ export default function TopNavbar({ onMenuClick }) {
                       {searchResults.documents.map(doc => (
                         <button 
                           key={doc.id}
-                          onClick={() => router.push(`/dashboard/documents`)}
+                          onClick={() => navigate('/dashboard/documents')}
                           className="w-full flex items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-sidebar-accent rounded-lg transition-colors text-left"
                         >
                           <FileText className="w-4 h-4 text-primary" />

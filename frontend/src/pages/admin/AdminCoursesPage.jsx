@@ -5,17 +5,18 @@ import PageHeader from '@/components/ui/PageHeader';
 import { apiFetch } from '@/lib/utils';
 
 const EMPTY_FORM = {
-  course_name:    '',
-  description:    '',
-  credits:        3,
-  max_seats:      50,
-  department_id:  '',
-  faculty_id:     '',
-  course_code:    '',
-  schedule_days:  '',
-  schedule_time:  '',
-  room:           '',
-  semester_label: '',
+  course_name:             '',
+  description:             '',
+  credits:                 3,
+  max_seats:               50,
+  department_id:           '',
+  faculty_id:              '',
+  course_code:             '',
+  schedule_days:           '',
+  schedule_time:           '',
+  room:                    '',
+  semester_label:          '',
+  prerequisite_course_ids: [],
 };
 
 export default function AdminCoursesPage() {
@@ -64,8 +65,9 @@ export default function AdminCoursesPage() {
   const resetForm = () => {
     setFormData({
       ...EMPTY_FORM,
-      department_id: departments[0]?.department_id || '',
-      faculty_id:    faculties[0]?.faculty_id    || '',
+      department_id:           departments[0]?.department_id || '',
+      faculty_id:              faculties[0]?.faculty_id    || '',
+      prerequisite_course_ids: [],
     });
     setEditingId(null);
     setShowForm(false);
@@ -95,17 +97,18 @@ export default function AdminCoursesPage() {
   const handleEdit = (course) => {
     setEditingId(course.course_id);
     setFormData({
-      course_name:    course.course_name    || '',
-      description:    course.description    || '',
-      credits:        course.credits        || 3,
-      max_seats:      course.max_seats      || 50,
-      department_id:  course.department_id  || '',
-      faculty_id:     course.faculty_id     || '',
-      course_code:    course.course_code    || '',
-      schedule_days:  course.schedule_days  || '',
-      schedule_time:  course.schedule_time  || '',
-      room:           course.room           || '',
-      semester_label: course.semester_label || '',
+      course_name:             course.course_name    || '',
+      description:             course.description    || '',
+      credits:                 course.credits        || 3,
+      max_seats:               course.max_seats      || 50,
+      department_id:           course.department_id  || '',
+      faculty_id:              course.faculty_id     || '',
+      course_code:             course.course_code    || '',
+      schedule_days:           course.schedule_days  || '',
+      schedule_time:           course.schedule_time  || '',
+      room:                    course.room           || '',
+      semester_label:          course.semester_label || '',
+      prerequisite_course_ids: course.prerequisites ? course.prerequisites.map(p => p.prerequisite_course_id) : [],
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -206,6 +209,37 @@ export default function AdminCoursesPage() {
               <textarea {...field('description')} className="w-full bg-background border border-card-border rounded-lg p-2 h-24 text-sm" required />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-1">Prerequisites (Optional)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-36 overflow-y-auto p-2 bg-background border border-card-border rounded-lg">
+                {courses
+                  .filter(c => !editingId || c.course_id !== editingId)
+                  .map(c => {
+                    const isChecked = (formData.prerequisite_course_ids || []).includes(c.course_id);
+                    return (
+                      <label key={c.course_id} className="flex items-center gap-2 text-xs text-foreground cursor-pointer hover:bg-sidebar-accent/50 p-1.5 rounded">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            const current = formData.prerequisite_course_ids || [];
+                            const updated = e.target.checked
+                              ? [...current, c.course_id]
+                              : current.filter(id => id !== c.course_id);
+                            setFormData({ ...formData, prerequisite_course_ids: updated });
+                          }}
+                          className="rounded text-primary focus:ring-primary"
+                        />
+                        <span className="truncate">{c.course_code || c.course_name}</span>
+                      </label>
+                    );
+                  })}
+                {courses.length <= 1 && (
+                  <span className="text-xs text-sidebar-fg italic col-span-2">No other courses available.</span>
+                )}
+              </div>
+            </div>
+
             <p className="text-xs font-semibold text-sidebar-fg uppercase tracking-wider pt-2">Scheduling & Location</p>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -256,6 +290,15 @@ export default function AdminCoursesPage() {
                   <td className="p-4">
                     <div className="font-bold text-foreground">{course.course_name}</div>
                     <div className="text-xs text-sidebar-fg">{course.course_code || course.course_id.substring(0, 8)}</div>
+                    {course.prerequisites?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {course.prerequisites.map(p => (
+                          <span key={p.prerequisite_id} className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded font-medium">
+                            Req: {p.prerequisite_course?.course_code || p.prerequisite_course?.course_name || 'Prereq'}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="p-4 text-sidebar-fg">{course.department?.department_name}</td>
                   <td className="p-4">

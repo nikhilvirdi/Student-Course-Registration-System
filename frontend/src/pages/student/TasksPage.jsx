@@ -56,16 +56,13 @@ export default function TasksPage() {
         priority: newTask.priority,
         due_date: newTask.dueDate || null,
         dueDate: newTask.dueDate || null,
-        status: 'To Do',
         completed: false
       });
       setNewTask({ title: '', category: 'Assignment', priority: 'Medium', dueDate: '' });
       setIsAddingTask(false);
-      toast({ title: 'Success', description: 'Task added successfully', type: 'success' });
+      toast({ title: 'Success', description: 'Task added and saved to database', type: 'success' });
     } catch (err) {
-      toast({ title: 'Warning', description: 'Task saved locally (backend sync failed)', type: 'warning' });
-      setNewTask({ title: '', category: 'Assignment', priority: 'Medium', dueDate: '' });
-      setIsAddingTask(false);
+      toast({ title: 'Failed to create task', description: err.message || 'Error saving to database', type: 'error' });
     }
   };
 
@@ -193,7 +190,13 @@ export default function TasksPage() {
                 )}
               >
                 <button 
-                  onClick={() => toggleTask(task.id)}
+                  onClick={async () => {
+                    try {
+                      await toggleTask(task.id);
+                    } catch (err) {
+                      toast({ title: 'Error', description: err.message || 'Failed to update task', type: 'error' });
+                    }
+                  }}
                   className="mt-0.5 text-sidebar-fg hover:text-primary transition-colors"
                 >
                   {task.completed ? (
@@ -222,7 +225,7 @@ export default function TasksPage() {
                             ? "text-amber-500 font-medium" 
                             : ""
                         )}>
-                          {task.dueDate || task.due_date || 'No deadline'}
+                          {task.dueDate || (task.due_date ? new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No deadline')}
                         </span>
                       </div>
                     </div>
@@ -232,17 +235,18 @@ export default function TasksPage() {
                     <StatusBadge status={task.priority} />
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
-                        onClick={() => {
-                          deleteTask(task.id);
-                          toast({ title: 'Success', description: 'Task deleted', type: 'success' });
+                        onClick={async () => {
+                          try {
+                            await deleteTask(task.id);
+                            toast({ title: 'Success', description: 'Task deleted', type: 'success' });
+                          } catch (err) {
+                            toast({ title: 'Error', description: err.message || 'Failed to delete task', type: 'error' });
+                          }
                         }}
                         className="p-2 text-sidebar-fg hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                         title="Delete task"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-sidebar-fg hover:text-foreground hover:bg-sidebar-accent rounded-lg transition-colors">
-                        <MoreHorizontal className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

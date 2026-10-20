@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
+const path = require('path');
+const fs = require('fs');
+
 const errorHandler = require('./utils/errorHandler');
 
 // Load environment variables
@@ -9,9 +12,16 @@ dotenv.config();
 
 const app = express();
 
+// Ensure uploads folder exists
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(uploadsDir));
 
 // Basic Route
 app.get('/', (req, res) => {

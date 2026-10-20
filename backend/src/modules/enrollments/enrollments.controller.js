@@ -46,6 +46,15 @@ const register = async (req, res, next) => {
       data: enrollment
     });
   } catch (error) {
+    if (
+      error.message.includes('not met') || 
+      error.message.includes('seats') || 
+      error.message.includes('already') ||
+      error.message.includes('limit') ||
+      error.message.includes('not found')
+    ) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     next(error);
   }
 };
@@ -70,6 +79,9 @@ const drop = async (req, res, next) => {
       ...result
     });
   } catch (error) {
+    if (error.message.includes('not found') || error.message.includes('Cannot')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
     next(error);
   }
 };

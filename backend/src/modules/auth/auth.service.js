@@ -103,19 +103,42 @@ const getMe = async (id, role) => {
  * - Validates email uniqueness (excluding the current student).
  * - Returns the updated safe user object (no password field).
  */
-const updateProfile = async (studentId, { name, email }) => {
+const updateProfile = async (userId, { name, email }, role = 'STUDENT') => {
   if (!name && !email) throw new Error('At least one field (name or email) is required');
 
-  // If email is changing, ensure no other student already has it
+  if (role === 'ADMIN') {
+    if (email) {
+      const conflict = await prisma.admin.findFirst({
+        where: { email, NOT: { admin_id: userId } }
+      });
+      if (conflict) throw new Error('This email is already in use by another account');
+    }
+    const updated = await prisma.admin.update({
+      where: { admin_id: userId },
+      data: {
+        ...(name && { name }),
+        ...(email && { email }),
+      },
+      select: { admin_id: true, name: true, email: true }
+    });
+    if (updated) {
+      const parts = (updated.name || '').split(' ');
+      updated.firstName = parts[0] || '';
+      updated.lastName = parts.slice(1).join(' ') || '';
+    }
+    return updated;
+  }
+
+  // Student update
   if (email) {
     const conflict = await prisma.student.findFirst({
-      where: { email, NOT: { student_id: studentId } }
+      where: { email, NOT: { student_id: userId } }
     });
     if (conflict) throw new Error('This email is already in use by another account');
   }
 
   const updated = await prisma.student.update({
-    where: { student_id: studentId },
+    where: { student_id: userId },
     data: {
       ...(name && { name }),
       ...(email && { email }),
@@ -136,13 +159,7 @@ const updateProfile = async (studentId, { name, email }) => {
   return updated;
 };
 
-/**
- * Change a student's password.
- * - Verifies the current password with bcrypt before accepting the new one.
- * - Rehashes the new password before storing.
- * - Enforces minimum length (8 chars).
- */
-const updatePassword = async (studentId, { currentPassword, newPassword }) => {
+const updatePassword = async (userId, { currentPassword, newPassword }, role = 'STUDENT') => {
   if (!currentPassword || !newPassword) {
     throw new Error('Both currentPassword and newPassword are required');
   }
@@ -150,7 +167,20 @@ const updatePassword = async (studentId, { currentPassword, newPassword }) => {
     throw new Error('New password must be at least 8 characters');
   }
 
-  const student = await prisma.student.findUnique({ where: { student_id: studentId } });
+  if (role === 'ADMIN') {
+    const admin = await prisma.admin.findUnique({ where: { admin_id: userId } });
+    if (!admin) throw new Error('Admin not found');
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+    if (!isMatch) throw new Error('Current password is incorrect');
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await prisma.admin.update({
+      where: { admin_id: userId },
+      data: { password: hashed }
+    });
+    return { success: true };
+  }
+
+  const student = await prisma.student.findUnique({ where: { student_id: userId } });
   if (!student) throw new Error('Student not found');
 
   const isMatch = await bcrypt.compare(currentPassword, student.password);
@@ -159,7 +189,7 @@ const updatePassword = async (studentId, { currentPassword, newPassword }) => {
   const hashed = await bcrypt.hash(newPassword, 10);
 
   await prisma.student.update({
-    where: { student_id: studentId },
+    where: { student_id: userId },
     data: { password: hashed }
   });
 

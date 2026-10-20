@@ -171,6 +171,139 @@ const getAllNotifications = async (req, res, next) => {
   }
 };
 
+const createStudent = async (req, res, next) => {
+  try {
+    const student = await AdminService.createStudent(req.body);
+
+    await AuditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'CREATE_STUDENT',
+      target: `Student: ${student.name} (${student.email})`,
+      type: 'system'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Student created successfully',
+      data: student
+    });
+  } catch (error) {
+    if (error.message.includes('already exists') || error.message.includes('required')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const updateStudent = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const student = await AdminService.updateStudent(id, req.body);
+
+    await AuditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'UPDATE_STUDENT',
+      target: `Student: ${student.name} (${student.email})`,
+      type: 'system'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Student updated successfully',
+      data: student
+    });
+  } catch (error) {
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    if (error.message.includes('already exists')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const deleteStudent = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await AdminService.deleteStudent(id);
+
+    await AuditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'DELETE_STUDENT',
+      target: `Student ID: ${id}`,
+      type: 'system'
+    });
+
+    res.status(200).json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const broadcastAnnouncement = async (req, res, next) => {
+  try {
+    const result = await AdminService.broadcastAnnouncement(req.body);
+
+    await AuditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'BROADCAST_ANNOUNCEMENT',
+      target: `Announcement: ${req.body.title}`,
+      type: 'system'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: result.message
+    });
+  } catch (error) {
+    if (error.message.includes('required') || error.message.includes('No students')) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const deleteAdminNotification = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await AdminService.deleteAdminNotification(id);
+
+    await AuditService.logAction({
+      user_id: req.user.id,
+      user_name: req.user.name,
+      user_role: req.user.role,
+      action: 'DELETE_NOTIFICATION',
+      target: `Notification ID: ${id}`,
+      type: 'system'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Notification deleted successfully'
+    });
+  } catch (error) {
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getAllEnrollments,
   getCourseStudents,
@@ -183,4 +316,9 @@ module.exports = {
   adminDropEnrollment,
   getAllDocuments,
   getAllNotifications,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  broadcastAnnouncement,
+  deleteAdminNotification,
 };

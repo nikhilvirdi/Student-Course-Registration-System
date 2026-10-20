@@ -3,7 +3,7 @@ const auditService = require('../admin/audit.service');
 
 const getTasks = async (req, res, next) => {
   try {
-    const tasks = await tasksService.getTasks(req.user.id);
+    const tasks = await tasksService.getTasks(req.user.id, req.user.role);
     res.status(200).json({ success: true, message: 'Tasks retrieved successfully', data: tasks });
   } catch (error) {
     next(error);
@@ -12,7 +12,7 @@ const getTasks = async (req, res, next) => {
 
 const createTask = async (req, res, next) => {
   try {
-    const task = await tasksService.createTask(req.user.id, req.body);
+    const task = await tasksService.createTask(req.user.id, req.body, req.user.role);
     
     // Log action
     await auditService.logAction({
@@ -32,7 +32,7 @@ const createTask = async (req, res, next) => {
 
 const updateTask = async (req, res, next) => {
   try {
-    const task = await tasksService.updateTask(req.params.id, req.user.id, req.body);
+    const task = await tasksService.updateTask(req.params.id, req.user.id, req.body, req.user.role);
     
     // Log action
     await auditService.logAction({
@@ -46,7 +46,7 @@ const updateTask = async (req, res, next) => {
 
     res.status(200).json({ success: true, message: 'Task updated successfully', data: task });
   } catch (error) {
-    if (error.message === 'Task not found or unauthorized') {
+    if (error.message.includes('not found') || error.message.includes('Unauthorized')) {
       return res.status(403).json({ success: false, message: error.message, data: null });
     }
     next(error);
@@ -55,7 +55,7 @@ const updateTask = async (req, res, next) => {
 
 const deleteTask = async (req, res, next) => {
   try {
-    const task = await tasksService.deleteTask(req.params.id, req.user.id);
+    const task = await tasksService.deleteTask(req.params.id, req.user.id, req.user.role);
     
     // Log action
     await auditService.logAction({
